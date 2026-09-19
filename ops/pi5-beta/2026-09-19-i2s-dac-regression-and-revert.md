@@ -93,3 +93,65 @@ FusionDSP's effect flag was also restored to `true` after the disable/enable exp
   govern whether 192 kHz and DSD can work over this link at all.
 - The original complaint - 192 kHz unreliable, DSD not playing - is now a question about the
   **I²S link between the Pi and the DO400**, not about a codec register on the HAT.
+
+---
+
+## The board identified - and the manufacturer prescribes the profile we reverted
+
+**Board: TZT Ustars Audio R19 Digital Audio Board** - a **digital audio *output* board** for
+Raspberry Pi (SPDIF/coax + optical + HDMI-I²S). It contains **no DAC**.
+
+Manufacturer's own parameter-test note:
+
+> "For Raspberry Pi 4B (version 1.2) to install the optimized version for MoodeAudio640.
+> **The output setting is: Audiophonics ES9028/9038 DAC**"
+
+So `dtoverlay=i-sabre-q2m` - the "Audiophonics I-Sabre ES9028Q2M" selection - is the
+**documented, required** configuration for this board. The root-cause record's claim that the
+profile "matched by name, not by hardware" and that "Generic I2S DAC" was "definitively correct"
+was wrong: the board depends on the I²S timing that overlay's **machine driver** produces. That
+is exactly the mechanism the correction banner describes, now confirmed by the vendor.
+
+### Stated capabilities (vendor specification)
+
+| output | PCM | DSD |
+|---|---|---|
+| Coaxial | 44.1-384 kHz / 24-bit | DSD64/128 (DoP) |
+| Optical | 44.1-192 kHz / 24-bit | DSD64 (DoP) |
+| **I²S over HDMI** | **44.1-384 kHz / 32-bit** | **DSD64/128/256/512 (Native DSD)** |
+
+Other stated properties that matter to us:
+
+- **Local dual audio clock synchronisation** - two on-board oscillators, *not* PLL-derived.
+- **"Use HDMI interface to output IIS signal, with MCLK output, you can set multiple output
+  modes and MCLK clock frequency."** The board therefore has **hardware output-mode / MCLK
+  settings** (jumpers or switches) that must match the receiving DAC.
+- **"No need to set output resampling, just turn off by default, truly original code lossless
+  output"** - the vendor expects resampling **off**.
+- Vendor distinguishes a general version from **"the official version for VOLUMIO", which
+  supports 44.1-192 kHz and DSD64**. DSD128+ is stated for the MoodeAudio variant. This is a
+  software-side ceiling, not an IIS limit (the IIS section claims up to DSD512).
+
+### Receiving DAC side - SMSL DO400 (from its own manual)
+
+- **I²S input is an HDMI-type connector** whose pinout **includes MCLK.**
+- Menu has **I²S MODE**: `NORMAL (PS AUDIO format)` / `REVERSED (DATA and LRCK inverted)`, with
+  the vendor note: *"this option is used to match different I²S interface standards. Before use,
+  please check the interface definition of the signal source."*
+- Menu also has **AUDIO PHASE**: `NORMAL (2+,3−)` / `INVERTED (2+,3+)`.
+- Spec table breaks out USB (PCM to 768 kHz/32-bit, DSD to 22.5792 MHz) and coax/optical
+  (DoP64); it does **not** list a separate I²S row. States all inputs except Bluetooth support DSD.
+
+### Consequence
+
+**Two independent hardware settings must agree, and neither is visible to the Pi:**
+the R19's output-mode / MCLK selection, and the DO400's I²S MODE. The DO400 manual explicitly
+directs the operator to match its setting to the source's interface definition. This is the
+first place to look for the original complaint (192 kHz unreliable, DSD silent) - and it is
+outside anything we can measure from the Pi.
+
+### Corrected ceiling for the original question
+
+Under VOLUMIO the vendor documents **PCM 44.1-192 kHz and DSD64**. The operator's DSD test files
+were DSD64, DSD128 and DSD256 - so DSD128/256 not working is *expected* for this board on
+Volumio, and only 192 kHz PCM and DSD64 are worth pursuing here.
