@@ -117,6 +117,11 @@ its output is being piped, and a chained `&& echo` will not run.
         HAT's conversion losses are counted, so PoE is a cabling convenience rather
         than a power upgrade — and this board already logs undervoltage on its
         current supply.
+   - **RESOLVED - see `2026-09-19-poe-wifi-single-network-mode.md`.** The cause is
+     Volumio's Single Network Mode: it decides by `eth0` **carrier** alone, so a
+     PoE HAT (cable always plugged) makes it suppress Wi-Fi by design. Fix applied:
+     `SINGLE_NETWORK_MODE=false` in `/volumio/.env`. Measured on the same boots: PoE
+     power was **cleaner** than USB-C (0 undervoltage events vs 326).
    - **Settling it with evidence:** `scripts/poe-diag.sh` (+ the `poe-diag.service`
      one-shot on the device) writes throttled flags, core volts, the undervoltage
      timeline, the Wi-Fi driver bring-up lines, interface/route/rfkill state and the
