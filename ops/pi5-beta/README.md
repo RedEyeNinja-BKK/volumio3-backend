@@ -10,6 +10,7 @@
 | Node | v20.5.1 |
 | Volume arch id | `VOLUMIO_ARCH="arm"` (from `/etc/os-release`) |
 | Display | 1920×480 strip, driven by a Chromium kiosk |
+| Audio out | I2S HAT (generic clone), codec-less — see below |
 | Backend checkout on device | `/volumio` (git) |
 
 ## Layout that matters
@@ -21,6 +22,45 @@
 | `/data/INTERNAL/NowPlayingPlugin/` | Now Playing user data (backgrounds, fonts, settings backups) |
 | `/opt/volumiokiosk.sh` | kiosk launcher (waits for port 3000, then loops Chromium) |
 | `/lib/systemd/system/volumio-kiosk.service` | kiosk unit (`startx` → Xsession → `/opt/volumiokiosk.sh`) |
+
+## Audio / I2S DAC
+
+The board drives an I2S HAT. Two things are worth knowing before touching audio:
+
+- **The HAT's DAC does not answer on I2C.** The codec driver's register accesses fail
+  with `-EREMOTEIO` from boot, every time, and have never once succeeded. The
+  `Audiophonics Device ID : FFFFFF87` line in `dmesg` is not an ID — it is the error
+  code `-121` sign-extended and printed as if it were a value.
+- **The profile that was selected matched by name, not by hardware.** Volumio's DAC
+  list is a list of overlays; "Audiophonics I-Sabre ES9028Q2M" hard-codes its codec at
+  `i2c1 / 0x48`, which nothing on this HAT answers. A codec-less profile
+  ("Generic I2S DAC" → `hifiberry-dac`) is the correct match and ships with Volumio.
+
+Consequence: everything that needs a register write is unavailable — the DAC mute, the
+FIR filter type, the digital volume, and the rate-class flag for ≥ 352.8 kHz, which is
+where DSD lands. See:
+
+- `2026-09-19-i2s-dac-control-plane-rootcause.md` — diagnosis and evidence
+- `2026-09-19-i2s-dac-remediation-plan.md` — the experiment plan and rollback paths
+- `scripts/i2s-diag.sh` — read-only snapshot, run before/after every audio experiment
+
+### Audio pipeline shape
+
+MPD feeds an ALSA chain that includes the FusionDSP plugin (whose engine is
+CamillaDSP, inline over a userspace FIFO) and a PeppyMeter scope:
+
+```
+MPD ── volumio ── volumioDsp (plug, S32_LE) ── fusiondsphook ── /tmp/fusiondspfifo
+                                                                     │
+                                          CamillaDSP ◄───────────────┘
+                                               │
+  hw:DAC ◄── volumioHw ◄── volumioOutput ◄── postPeppyalsa ◄── Peppyalsa (meter)
+```
+
+Two practical consequences: the DSP engine's cost scales with sample rate (roughly
+8.7× the realtime work at 384 kHz versus 44.1 kHz), and because it sits inline it
+forces DSD → PCM. With `dop "no"` on MPD's output, DSD is converted at DSD-rate ÷ 8 —
+measured DSD64 → 352.8 kHz, DSD128 → 384 kHz, DSD256 → 192 kHz.
 
 ## Display stack (as observed)
 
