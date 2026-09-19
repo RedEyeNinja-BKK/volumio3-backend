@@ -155,3 +155,74 @@ outside anything we can measure from the Pi.
 Under VOLUMIO the vendor documents **PCM 44.1-192 kHz and DSD64**. The operator's DSD test files
 were DSD64, DSD128 and DSD256 - so DSD128/256 not working is *expected* for this board on
 Volumio, and only 192 kHz PCM and DSD64 are worth pursuing here.
+
+---
+
+## Hardware configuration of the R19 (vendor documentation) - and the prime suspect for 192 kHz
+
+### On-board settings
+
+The board photo and tables give four jumper groups:
+
+| jumper | function |
+|---|---|
+| J1 | no function |
+| **J2, J3** | **IIS MCLK frequency** (4 modes) |
+| **J4, J5** | **IIS interface mode** (4 HDMI pinout modes) |
+
+And **`LOCK` / `DSD` indicator LEDs** - a free diagnostic for whether the board sees a valid
+IIS signal and whether it is in DSD mode.
+
+Vendor note: **"IIS output BICK is 64FS"** - the bit clock is 64×Fs.
+
+### MCLK mode table (J2/J3) - relevant rows
+
+| sampling frequency | mode 1 (J2 ✗ J3 ✗) | mode 2 (J2 ✓ J3 ✗) | mode 3 (J2 ✗ J3 ✓) | mode 4 (J2 ✓ J3 ✓) |
+|---|---|---|---|---|
+| 44.1 kHz | 256FS / 11.289 M | 512FS / 22.579 M | 1024FS / 45.158 M | 256FS / 11.289 M |
+| 96 kHz | 256FS / 24.576 M | 256FS / 22.579 M | 512FS / 49.152 M | 128FS / 12.288 M |
+| **192 kHz** | **128FS / 24.576 M** | **128FS / 24.576 M** | **256FS / 49.152 M** | **64FS / 12.288 M** |
+| DSD 2.8224 MHz (DSD64) | 22.579 M | 22.579 M | 45.158 M | 11.289 M |
+
+**This explains the symptom exactly if the board is in MCLK mode 4.** In mode 4, 44.1 kHz gets
+256FS (11.289 M) and 96 kHz gets 128FS (12.288 M) - both healthy - while **192 kHz gets only
+64FS (12.288 M), a MCLK ratio an ES9039-class DAC will not lock to.** That is precisely the
+observed pattern: 44.1 and 96 work on IIS, 192 kHz reports playback with no sound.
+
+In **mode 1** (J2 and J3 both removed), 192 kHz gets **128FS / 24.576 MHz**, a healthy ratio.
+
+### IIS interface mode table (J4/J5) vs the receiving DAC
+
+| mode | jumpers | pin 1 / 3 | pin 7 / 9 |
+|---|---|---|---|
+| 1 | J4 ✗ J5 ✗ | DTAT− / DTAT+ (R) | LRCK− / LRCK+ (L) |
+| 2 | J4 ✗ J5 ✓ | DTAT+ / DTAT− (R) | LRCK+ / LRCK− (L) |
+| 3 | J4 ✓ J5 ✗ | DTAT− / DTAT+ (L) | LRCK− / LRCK+ (R) |
+| 4 | J4 ✓ J5 ✓ | DTAT+ / DTAT− (L) | LRCK+ / LRCK− (R) |
+
+Modes 1/2 present the **R** side first, modes 3/4 the **L** side; modes 1/3 are **negative-first**,
+2/4 **positive-first**. This is the polarity the SMSL DO400's own **`I2S MODE`** menu item exists
+to match - its manual offers `NORMAL (PS AUDIO format)` and `REVERSED (DATA and LRCK inverted)`,
+with the instruction to check the source's interface definition. The two settings must agree.
+
+### Host compatibility - Raspberry Pi 5 is NOT listed
+
+Vendor states the board is for **Raspberry Pi 2B / 3B / 3B+ / 4B**. This device is a **Pi 5**,
+where I²S is provided by RP1 with different clocking and overlays. Low rates working proves the
+link is functional, but high-rate behaviour on a Pi 5 is outside anything the vendor validated;
+their tables were derived on a Pi 4B.
+
+### Power-safe configuration
+
+The board can be powered from the Pi's 40-pin header **or** its own DC socket, and the vendor
+states the two must never be used together - doing so can damage the board, the Pi, or the supply.
+This device is PoE-powered through a HAT, so nothing may be plugged into the R19's DC socket.
+
+### Prior operator characterisation (independent confirmation)
+
+A public Volumio community post by the operator (June 2025, Volumio 4.012, Pi 5 8 GB) on this same
+board already recorded the matrix above, with playback option **"Audiophonics I-Sabre ES9028Q2M"**
+chosen "as per the item's ad" - matching the vendor's parameter-test instruction. 192/24 over
+i2s/HDMI was "Volumio shows playback, but no sound to DAC" while coax worked; DSD "can start a song,
+but no sound". The symptom predates every change made in this record and is rate-dependent, not
+profile-dependent.
