@@ -61,6 +61,11 @@ needs no API key (`src/lib/api/open-meteo/`). The user's stored
 `weather.openWeatherMapApiKey` is simply no longer read; leaving it in place is
 harmless and it was **not** removed.
 
+**One regression found after the upgrade**, fixed the same day: the idle screen lost
+its 7th forecast day (TODAY + 6 instead of TODAY + 7), because the Open-Meteo rewrite
+requests `forecast_days: 7` while the old OpenWeatherMap path fetched 8 days and then
+dropped the leading one. See `2026-09-19-forecast-days-patch.md`.
+
 Rest of the upgrade: the live config (idle-screen layout, localisation,
 backgrounds, metadata service settings) was preserved untouched throughout.
 
