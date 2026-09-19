@@ -141,3 +141,51 @@ PC with the card removed — no dependence on the device coming up.
   capture path and CamillaDSP holds the ALSA device).
 - Whether capping the pipeline at 192 kHz makes DSD play as PCM (experiment E4).
 - Whether *any* of the three candidate upstream bugs gets filed. Separate decision.
+
+---
+
+## VERIFIED - after the cold start (2026-09-19, device uptime fresh)
+
+The cold start was performed by the operator. All expected signals confirmed:
+
+| measurement | before | after |
+|---|---|---|
+| codec I2C error lines in `dmesg` | **116** per session | **0** |
+| `Audiophonics Device ID : FFFFFF87` line | present (a failed read) | **absent** |
+| ALSA card 1 | `DAC` / `I-Sabre Q2M DAC` | **`sndrpihifiberry`** / `pcm5102a-hifi-0` |
+| `i2c` client on bus 1 | `1-0048` present | **absent** (only the DSI panel/touch remain) |
+| banner blocks in `/boot/config.txt` | 2 | **1** |
+| overlay | `dtoverlay=i-sabre-q2m` ×2 | **`dtoverlay=hifiberry-dac`** |
+| Volumio selection | Audiophonics I-Sabre ES9028Q2M | **Generic I2S DAC** / `hifiberry-dac` |
+
+Playback verified live through the full chain, MPD reporting `state=play` with no error and
+the hardware device `RUNNING` at the negotiated rate:
+
+| source | rate at `hw:DAC` |
+|---|---|
+| 44.1 kHz / 16-bit FLAC | 44100 |
+| 192 kHz / 24-bit FLAC | 192000 |
+| DSD64 (`.dsf`) | 352800 |
+
+**`asound.conf` needed the hand alignment.** `internalUpdateALSAConfigFile` builds
+`card "<outputdevicecardname>"` but is only reached *conditionally* from `onVolumioStart`,
+so the stale `card "DAC"` would not have been corrected automatically. It was set to
+`sndrpihifiberry` before the cold start and held.
+
+### What this does NOT prove
+
+The swap removes the failing control path; it does not change what the DAC does. The chip was
+running on power-on defaults before (because every write failed) and is on power-on defaults
+now (because there is no codec driver at all). So:
+
+- **For DSD this is decisive:** with no control plane the ≥352.8 kHz rate-class bit can never be
+  set, so native DSD is not reachable on this board. The remedy is to cap the pipeline at
+  192 kHz and let DSD play as PCM (plan experiment E4).
+- **For 192 kHz this is NOT yet proven.** The measurable gain is the removal of 116 failing I2C
+  transactions per session from the audio path (they occur inside `hw_params` at stream start
+  and on every track change, so they sit directly in the playback path). Whether 192 kHz is now
+  *audibly* reliable is an empirical question that needs the operator's ears - plan experiment
+  E3. No claim is made here either way.
+
+Still open: E3 (is 192 kHz clean with FusionDSP bypassed?) and E4 (does capping at 192 kHz make
+DSD play?).
