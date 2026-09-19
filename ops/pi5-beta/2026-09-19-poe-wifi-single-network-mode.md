@@ -148,12 +148,14 @@ power off and return to USB-C power, then read the new `/data/poe-diag-*.txt`.
    worth a multi-hour PoE run before declaring the supply conclusively better — if it
    holds, PoE also removes the UV-driven instability suspected in the black-screen
    incidents.
-2. **Software power-off is a halt, not a power cut** (operator-reported): after a
-   Volumio UI power-off the **display stays lit** and re-powering too soon can hang the
-   board. Volumio runs `systemctl poweroff` with a `/sbin/shutdown -h now` fallback
-   (`app/platformSpecific.js:17,24`), which halts the OS but does **not** remove the 5 V
-   input — so the panel and rails stay energised. Recovery rule: after a software
-   power-off, physically break the supply and wait before restoring it.
+2. **Software power-off is a stop, not a power cut** (operator-reported, code-confirmed):
+   after a Volumio UI power-off the **display stays lit** and re-powering too soon can
+   wedge the board. Volumio runs `systemctl power-off` with a `/sbin` fallback
+   (`app/platformSpecific.js:17,24`), which brings the OS down but does **not** remove
+   the 5 V input — so the panel and rails stay energised. Recovery rule: after a
+   software power-off, physically break the supply and wait before restoring it.
+   *Mitigated:* the panel is now blanked as part of the kiosk stop — see
+   `2026-09-19-blank-display-on-power-off.md`.
 2. **Does `/volumio/.env` survive a Volumio system update?** The file is dated with the
    current system build, so an update may replace it. Re-check and re-apply after any
    update.
