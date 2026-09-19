@@ -226,3 +226,60 @@ chosen "as per the item's ad" - matching the vendor's parameter-test instruction
 i2s/HDMI was "Volumio shows playback, but no sound to DAC" while coax worked; DSD "can start a song,
 but no sound". The symptom predates every change made in this record and is rate-dependent, not
 profile-dependent.
+
+---
+
+## RETRACTION - the MCLK-mode-4 prediction above is WRONG
+
+The previous section infers from the vendor MCLK table that **mode 4** (192 kHz → 64FS/12.288 M)
+must fail to lock, and offers that as the explanation. **The operator's own measurements, made
+in May 2025 on this exact board, disprove it.** That was reasoning from a datasheet expectation
+instead of from the available evidence, and the evidence was one hyperlink away.
+
+### The measured matrix (operator, Volumio, this board + SMSL DO400)
+
+| MCLK mode | jumpers | 192/24 over IIS | DSD over IIS |
+|---|---|---|---|
+| mode 1 | none fitted | **maxes out at 96/24** | - |
+| mode 2 | J2 ✓ J3 ✗ | maxes out at 96/24 | **works - DSD out as PCM**, then drops out after ~3 tracks (click → white noise) |
+| mode 3 | J2 ✗ J3 ✓ | not reported | not reported |
+| **mode 4** | **J2 ✓ J3 ✓** | **192/24 WORKS** | **no DSD output** |
+
+Operator verbatim, May 2025:
+
+> "previously with another HAT, the i2s/HDMI output will max out at 96/24, but **in MCLK_mode4, I
+> was able to get it to play 192/24 thru i2s but no DSD output**"
+
+> "The log … is supposedly in **MCLK_mode2** and it was able to **output DSD thru i2s as PCM**. In
+> the Playback options, it was left as DSD native. HOWEVER!1!!! It played like 3 songs and then
+> **audio completely dropped out** when I tried to load another DSD file, with only a slight click
+> and then white noise. In this mode, it also maxes out at 96/24 otherwise."
+
+> "The pics in the link with regards to the jumpers and the config of i2s modes/output appears to be
+> wrong, but having played around with it, I've gotten it to output the correct channel by **just
+> leaving it as is [no jumpers]**."
+
+### What this actually means
+
+1. **The board forces a tradeoff between 192 kHz PCM and DSD over IIS.** Mode 4 gives 192/24 with
+   no DSD; mode 2 gives DSD but caps PCM at 96/24. They are mutually exclusive on this board.
+2. **192 kHz is achievable** - it is not a hardware wall, it is a jumper selection. The earlier
+   framing in this workstream ("192 kHz may be beyond this HAT") was wrong.
+3. **DSD's failure in mode 2 is abrupt and total** (three tracks, then a click and white noise),
+   consistent with the board's function-control MCU switching MCLK on a rate change and the DAC
+   failing to re-lock.
+4. **Both the operator and the vendor point at the platform, not the board.** The operator's
+   conclusion: *"it appears that moode already has full support for these hats for DSD via i2s."*
+   The vendor distinguishes a **Volumio variant (44.1-192 kHz, DSD64)** from a **MoodeAudio variant
+   (44.1-384 kHz, DSD64-128)**. Volumio lacking a proper driver for this board is therefore a
+   documented platform gap, not a defect we can repair from the device.
+5. **Both profiles were already tried** by the operator in May 2025 ("Audiophonics ES9028/9038 DAC"
+   and "HifiBerry DAC"). The `hifiberry-dac` substitution made in this workstream had already been
+   tested a year earlier.
+
+### Corrected guidance
+
+- **Want 192 kHz PCM** → MCLK mode 4; accept no DSD.
+- **Want DSD** → MCLK mode 2; PCM caps at 96/24 and dropouts are expected.
+- **Want 384 kHz or DSD128+** → outside what Volumio supports for this board.
+- Jumpers J4/J5 set the IIS pinout and must still agree with the DO400's `I2S MODE`.
