@@ -36,6 +36,17 @@ Copies exist on the device at, respectively:
 
 Both device copies were hash-verified byte-identical to the live files at backup time.
 
+### Instrumentation (done)
+
+`scripts/i2s-diag.sh` is staged on the device at `/home/<user>/i2s-diag.sh`
+(sha256 `a05d92fb61e0d6e0e96eb0615cee7105610cef312ffa053aea253e193dd89a14`) and its
+**pre-change baseline** is committed as
+`evidence/2026-09-19-i2s-baseline.txt` (sanitized). Every experiment below is judged by
+re-running this same instrument, so the before/after comparison is like-for-like.
+
+Baseline signature: **110 codec log lines, 110 of them `ASoC: error`, 0 others.**
+A healthy codec produces 0/0/0 — it logs nothing, because nothing fails.
+
 ### Risk notes
 
 - The device is supplied over PoE and is headless apart from its DSI strip. A boot
