@@ -105,3 +105,20 @@ its output is being piped, and a chained `&& echo` will not run.
      failing to initialise rather than as a clean boot — Wi-Fi is typically the first
      casualty. Check the PoE class/budget and the splitter's 5 V regulation before
      concluding that Wi-Fi itself is at fault.
+   - **Observed setup and its expected behaviour:** 802.3at (25.5 W at the port) via a
+     PoE HAT, with the PoE router carrying **no data**. Two consequences:
+     1. A dead-end uplink should *not* steal connectivity: eth0 is configured
+        `iface eth0 inet dhcp` with `noipv4ll`, so with no DHCP server it takes no
+        address and adds no route — Wi-Fi keeps the default route. Volumio's network
+        plugin has no "disable wireless when wired" path either (`wireless_enabled` is
+        only written by the explicit `wirelessEnable`/`wirelessDisable` methods), so
+        Wi-Fi disappearing is **not** explained by the network configuration.
+     2. 802.3at at the port is *less* than a healthy 5 V/5 A USB-C supply once the
+        HAT's conversion losses are counted, so PoE is a cabling convenience rather
+        than a power upgrade — and this board already logs undervoltage on its
+        current supply.
+   - **Settling it with evidence:** `scripts/poe-diag.sh` (+ the `poe-diag.service`
+     one-shot on the device) writes throttled flags, core volts, the undervoltage
+     timeline, the Wi-Fi driver bring-up lines, interface/route/rfkill state and the
+     eth0 link state to `/data` **at boot** — before Wi-Fi fails and the box becomes
+     unreachable. Arm it, power over PoE, switch back, then read the report.
