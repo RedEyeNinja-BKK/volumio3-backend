@@ -53,7 +53,7 @@ it runs with `cleanup === true` (the uninstall path).
 | Plugin app port | `4004`, HTTP 200 on `/` |
 | Journal on load | `[now-playing] ConfigUpdater: config is up to date`, `App is listening on port 4004` |
 | Client bundle served | `/static/js/main.70c84897.js` — matches the `1.1.1` package build |
-| Idle screen (1920×480 capture) | clock + date correct, **weather rendered via Open-Meteo** (current + 7-day forecast), Unsplash background loaded |
+| Idle screen (1920×480 capture) | clock + date correct, **weather rendered via Open-Meteo**, Unsplash background loaded. Forecast row showed **TODAY + 6** days at this point — the lost 7th day is fixed in `2026-09-19-forecast-days-patch.md` |
 | Config schema change `1.0.6` → `1.1.1` | **none** — the `UIConfig.json` key sets are identical, so the user's stored config needed no migration |
 
 Weather provider note: `1.1.x` moved from OpenWeatherMap to **Open-Meteo**, which
