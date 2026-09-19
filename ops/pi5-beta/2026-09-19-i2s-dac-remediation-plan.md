@@ -185,18 +185,28 @@ at all. Native DSD would need a HAT with a working control plane.
 - **DSD over PCM (DoP).** `dop "yes"` would carry DSD64 as 176.4 kHz PCM, but DSD128 would
   become 352.8 kHz again, and DoP detection is itself a chip configuration. Worth trying
   only after E1/E2, and only if E4 proves insufficient.
-- **Filing anything upstream.** The duplicate `dtoverlay=` block and the empty
-  `hotRemoveI2SDAC` stub are legitimately reportable Volumio bugs, but filing needs a
-  separate explicit decision. Nothing is filed.
+- **Filing anything upstream.** Three legitimately reportable Volumio defects are now
+  identified — the duplicate `dtoverlay=` block (single-match, append-on-miss regex), the
+  empty `hotRemoveI2SDAC` stub, and `asound.conf` not being regenerated when the DAC
+  profile changes the ALSA card name. Filing needs a separate explicit decision.
+  Nothing is filed.
 - **Changing `/data/configuration/**` by hand**, or the Now Playing / kiosk work from the
   other 2026-09-19 records — unrelated.
 
-## GO gates
+## GO gates and status
 
-| # | action | reboot | reversibility | status |
+| # | action | needs cold start | reversibility | status |
 |---|---|---|---|---|
-| E1 | probe `0x48` with the client removed | yes (recovery) | nothing persists | awaiting GO |
-| E2p1 | boot-config hygiene | yes | byte-exact backup | awaiting GO |
-| E2p2 | switch profile to "Generic I2S DAC" | with E2p1 | dropdown + backup | contingent on E1 |
+| E1 | probe `0x48` with the client removed | no (done in-session) | nothing persisted | **DONE — no chip answers** |
+| E2p1 | boot-config hygiene | yes | byte-exact backup | **APPLIED — awaiting cold start** |
+| E2p2 | switch profile to "Generic I2S DAC" | with E2p1 | dropdown + backup | **APPLIED — awaiting cold start** |
 | E3 | FusionDSP off, listen, on | no | UI toggle | awaiting GO |
 | E4 | resampling to 192 kHz | no | UI toggle | awaiting GO |
+
+> E1 and E2 were executed on 2026-09-19. See
+> `2026-09-19-i2s-dac-execution-e1-e2.md` for the result, the before/after hashes and
+> the rollback commands.
+>
+> "Cold start" is required because the device tree overlay is applied by the boot
+> firmware. The runtime `dtoverlay` route is not usable here: the previous overlay is
+> already present from the running start and the two conflict on `&sound`.
