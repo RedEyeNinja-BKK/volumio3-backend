@@ -283,3 +283,53 @@ Operator verbatim, May 2025:
 - **Want DSD** → MCLK mode 2; PCM caps at 96/24 and dropouts are expected.
 - **Want 384 kHz or DSD128+** → outside what Volumio supports for this board.
 - Jumpers J4/J5 set the IIS pinout and must still agree with the DO400's `I2S MODE`.
+
+---
+
+## TRUST CORRECTION - the vendor jumper tables are NOT a verified mapping
+
+The sections above record the R19's jumper tables as if they define which physical jumper
+position selects which mode. **They do not, and they must not be used to instruct anyone.**
+The operator's own experience, in the same post quoted above:
+
+> "I also played with the jumpers for MCLK_modes… **this is where it gets interesting as I can not
+> rely on the pics in the link to correspond to what actual mode it's in**"
+
+So the correspondence between **documented mode number** and **actual jumper position** is
+**unverified**, and the mode labels used in the measured matrix (`mode 1/2/4`) are the operator's
+*attribution* at the time, not a confirmed mapping. Re-reading the vendor table and saying
+"set J2+J3 to mode 4" would be an instruction built on an unverified diagram.
+
+### What is actually solid, and what is not
+
+| statement | status |
+|---|---|
+| IIS bit clock is 64FS | vendor claim, not independently measured |
+| J2/J3 relate to MCLK, J4/J5 to interface mode | **verified** - both the board silkscreen labels and the operator's experiments |
+| the four MCLK mode *numbers* correspond to specific J2/J3 positions in a specific way | **UNVERIFIED - do not rely on it** |
+| some MCLK configuration yields 192/24 over IIS with no DSD | **observed** (operator) |
+| some MCLK configuration yields DSD (as PCM) with a 96/24 PCM ceiling | **observed** (operator) |
+| no jumpers fitted yields correct channel assignment | **observed** (operator) |
+| the DO400 `I2S MODE` and the R19 interface mode (J4/J5) must agree | inferred from the DO400 manual's own instruction; **not yet verified on this pair** |
+
+### The method this forces
+
+Because the documented mapping cannot be trusted, the configuration cannot be *read off a table*
+- it has to be **found empirically**, and the board provides its own instruments for that:
+the **`LOCK` and `DSD` indicator LEDs**.
+
+Protocol: fix the interface jumpers at the position already observed to give correct channels,
+then sweep the MCLK jumpers one at a time. For each position, drive a known 192/24 file and a
+known DSD64 file from the Pi and record - for each - the LED state and whether there is sound.
+The Pi's side (rate actually sent, signal levels present) is measurable and stable, so the jumper
+position is the only variable. That yields a jumper-position→behaviour table that is *measured*
+rather than transcribed.
+
+### Reusable lesson: mark provenance and trust level in every record
+
+This is the second time in this workstream that a **secondary source was treated as
+authoritative** and conclusions were built on it - first the `family_*` memory digests (used to
+justify deletions until the digest bodies were actually read), then these vendor jumper tables.
+Both looked authoritative; neither was. Records in this directory should state, for each fact,
+whether it is **measured by us**, **observed by the operator**, or **claimed by a third party** -
+and third-party claims should never be the basis of an instruction.
