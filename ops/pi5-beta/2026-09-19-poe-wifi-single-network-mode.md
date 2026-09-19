@@ -1,8 +1,8 @@
 # 2026-09-19 — pi5-beta: why PoE killed Wi-Fi (Volumio "Single Network Mode")
 
 **Device:** `pi5-beta` · **Follows:** `2026-09-19-now-playing-1.1.1.md`,
-`2026-09-19-forecast-days-patch.md` · **Status:** root cause found, FIX APPLIED,
-PoE re-test pending
+`2026-09-19-forecast-days-patch.md` · **Status:** root cause found, FIX APPLIED and
+**VERIFIED live on PoE** (PoE power + working Wi-Fi simultaneously)
 
 ## Symptom
 
@@ -88,12 +88,54 @@ Backup: `np-backups/dotenv-backup-<timestamp>` on the device (841 bytes, 27 keys
 | File change | one line, key count unchanged (27), diff reviewed |
 | Daemon parses it | `/tmp/wireless.log`: `Multi-Network Mode enabled (development) - both ethernet and wireless can be active simultaneously` |
 | Inert without a cable | after `systemctl restart wireless.service` on USB-C: `wlan0 UP`, default route intact, no loss of access |
-| PoE re-test | **pending** — see below |
+| PoE re-test | **PASS** — see below |
 
-## Re-test procedure
+### PoE re-test result (PASS)
 
-Keep `poe-diag.service` armed (it captures a report per boot), then: clean shutdown →
-unplug USB-C → plug PoE → boot. Expected: `wlan0` gets an IP *and* eth0 has carrier.
+Clean software power-off → USB-C removed → PoE cable only → boot. The board came up
+with **both interfaces active at once**, which the original behaviour made impossible:
+
+| Check | Result |
+|---|---|
+| `eth0` | UP, `carrier=1`, 1000 Mb/s — confirms PoE power path |
+| `wlan0` | **UP with a DHCP address** |
+| Default route | via `wlan0` (the dead-end eth0 took no address, as expected — no route theft) |
+| `vcgencmd get_throttled` | **`0x0`** |
+| Undervoltage events | **0** (USB-C boot the same day: `0x50005`, 1–326 events) |
+| Internet over Wi-Fi while on PoE | yes — weather (Open-Meteo) and the Unsplash background both loaded on the idle screen |
+| `wireless.service` | active |
+
+Boot log (`/tmp/wireless.log`) shows the decision explicitly:
+
+```
+Multi-Network Mode enabled (development) - both ethernet and wireless can be active simultaneously
+Single Network Mode: disabled
+refreshEthernetState: Corrected ethernet state: connected
+Previous ethernet state: disconnected -> New ethernet state: connected
+```
+
+### Reading the log line that looks alarming
+
+The transition still logs `Action: Switch to ethernet (WiFi scan mode)`. That message is
+printed **unconditionally** when a wired carrier appears, but the *destructive* part is
+gated:
+
+```js
+loggerInfo("Action: Switch to ethernet (WiFi scan mode)");   // always logged
+if (!isFirstStart && singleNetworkMode) {                    // gate
+    execSync(SUDO + ' ' + DHCPCD + ' -k ' + wlan, ...)       // lease release + teardown
+}
+```
+
+With `singleNetworkMode` false the teardown is skipped, `wlan0` keeps its lease, and the
+only trace is the misleading log line. Do not diagnose a Wi-Fi loss from that line alone —
+check whether `wlan0` actually holds a DHCP address.
+
+## Re-test procedure (executed, PASS)
+
+Keep `poe-diag.service` armed (it captures a report per boot), then: clean software
+power-off → unplug USB-C → plug PoE → boot. Result: `wlan0` got an IP *and* eth0 held
+carrier, as recorded above.
 
 **If Wi-Fi still does not come up on PoE:** the hotspot fallback will *not* rescue it,
 because the daemon sees a wired carrier and assumes the LAN is fine. Recovery is to
@@ -101,10 +143,17 @@ power off and return to USB-C power, then read the new `/data/poe-diag-*.txt`.
 
 ## Open items
 
-1. **Soak test.** The PoE reading of "0 undervoltage events" is from 60 s of uptime —
-   encouraging, but a multi-hour PoE run is needed before calling the supply
-   conclusively better. If it holds, PoE also removes the UV-driven instability
-   suspected in the black-screen incidents.
+1. **Soak test.** Two clean PoE readings (`0x0` / 0 events, one at 60 s and one at boot)
+   versus consistent undervoltage on the USB-C supply (`0x50005`, 1–326 events). Still
+   worth a multi-hour PoE run before declaring the supply conclusively better — if it
+   holds, PoE also removes the UV-driven instability suspected in the black-screen
+   incidents.
+2. **Software power-off is a halt, not a power cut** (operator-reported): after a
+   Volumio UI power-off the **display stays lit** and re-powering too soon can hang the
+   board. Volumio runs `systemctl poweroff` with a `/sbin/shutdown -h now` fallback
+   (`app/platformSpecific.js:17,24`), which halts the OS but does **not** remove the 5 V
+   input — so the panel and rails stay energised. Recovery rule: after a software
+   power-off, physically break the supply and wait before restoring it.
 2. **Does `/volumio/.env` survive a Volumio system update?** The file is dated with the
    current system build, so an update may replace it. Re-check and re-apply after any
    update.
