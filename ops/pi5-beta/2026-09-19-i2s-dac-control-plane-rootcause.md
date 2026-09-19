@@ -1,3 +1,47 @@
+> ## CORRECTION - 2026-09-19, later the same day
+>
+> **The central conclusion in this record is superseded, and the change it recommended caused
+> a regression. Read `2026-09-19-i2s-dac-regression-and-revert.md` before using anything here.**
+>
+> The HAT is **not** a DAC. It is an **I²S output board**; the actual DAC is an external
+> **SMSL DO400** fed over I²S. Therefore:
+>
+> - The dead I²C at `0x48` is fully explained - there was **never a DAC chip on the HAT**.
+> - The inference drawn from it was wrong. The record reasoned "the driver is blind, so it is
+>   doing nothing useful, so a codec-less profile is strictly better." The driver was not doing
+>   nothing: the *machine driver* (`snd-rpi-i-sabre-q2m`) also configures the **I²S DAI -
+>   framing, bit-clock ratio and clocking - none of which involves I²C.**
+> - Replacing it with `hifiberry-dac`, whose machine driver frames the stream differently via
+>   the `pcm5102a` dummy codec, produced **total silence on the DO400's I²S input.** Coax and
+>   optical continued to work because they are fed from a different source.
+>
+> **Every measurement in this record is upstream of the failure it claims to explain.**
+> `hw_params`, `hw_ptr`, CamillaDSP signal levels and the zero I²C error count all describe the
+> Pi's side of the link; none observes whether the I²S frame arriving at the DO400 is decodable.
+> "Verified" here meant "clean at the ALSA device", not "audible" - and that gap is how a
+> regression came to be reported as a pass.
+>
+> Reverted byte-exact the same day.
+
+> ## ⚠️ CORRECTION - 2026-09-19, later the same day
+>
+> **This record's central conclusion is WRONG and its recommendation caused a regression.
+> Do not act on it.**
+>
+> The HAT is **not** a DAC. It is an **I²S output board**; the actual DAC is an external
+> **SMSL DO400** fed over I²S. So:
+>
+> - But the inference drawn from it was wrong. I concluded "the driver is blind, therefore it
+>   is doing nothing useful, therefore a codec-less profile is strictly better." **The driver
+>   was not doing nothing:** the *machine driver* (`snd-rpi-i-sabre-q2m`) also configures the
+>   **I²S DAI - framing, bit-clock ratio and clocking - and none of that involves I²C.**
+>   optical still work because they are fed by a different source.
+>
+> `hw_ptr`, CamillaDSP signal levels and the zero I²C error count all describe the Pi's side
+> of the link. None of them observes whether the I²S frame the DO400 receives is decodable.
+> what let a regression be reported as a pass.
+>
+
 # 2026-09-19 — I2S DAC: the codec's I2C control plane has never worked
 
 **Device:** `pi5-beta`
