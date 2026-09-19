@@ -83,8 +83,14 @@ fi
 hr "CODEC I2C HEALTH — the decisive measurement"
 if command -v dmesg >/dev/null 2>&1; then
   total=$(dmesg | grep -c "i-sabre-codec-i2c")
-  echo "  total i-sabre I2C messages in dmesg : $total"
-  echo "  (every one observed so far has been an error; a healthy boot has 0)"
+  errs=$(dmesg | grep -c "i-sabre-codec-i2c.*ASoC: error")
+  echo "  i-sabre I2C log lines           : $total"
+  echo "  of which 'ASoC: error' lines    : $errs"
+  echo "  lines NOT matching the error    : $((total - errs))"
+  echo
+  echo "  How to read this: a HEALTHY codec logs nothing here at all, because nothing"
+  echo "  fails. So the healthy signature is 0 / 0 / 0. The 2026-09-19 baseline before"
+  echo "  any remediation was 110 / 110 / 0 — i.e. every line was a failure."
   echo
   echo "  failures by register:"
   for r in 00000001 00000002 00000010 00000020 00000021 00000022 00000024; do
