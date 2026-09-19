@@ -47,14 +47,42 @@ Consequence: if X or Chromium exits for any reason, nothing brings it back — t
 screen stays dead until a manual power cycle. See
 `2026-09-19-now-playing-1.1.1.md` §2 for the mitigation we applied.
 
+## Capturing the display (for verification)
+
+The kiosk's X server is **not on `:0`**. Read the real values from the running
+Chromium's environment instead of guessing:
+
+```sh
+CPID=$(pgrep -f 'chromium.*localhost:4004' | head -1)
+XA=$(tr '\0' '\n' < /proc/$CPID/environ | sed -n 's/^XAUTHORITY=//p')
+DISP=$(tr '\0' '\n' < /proc/$CPID/environ | sed -n 's/^DISPLAY=//p')
+XAUTHORITY="$XA" DISPLAY="$DISP" scrot -o /tmp/screen.png
+```
+
+Observed live values: `DISPLAY=:1`, `XAUTHORITY=/home/<user>/.Xauthority`.
+Guessing `:0` fails with `Can't open X display` — which looks like a dead display but
+is only the wrong display number. Check `scrot`'s exit code too: it fails silently if
+its output is being piped, and a chained `&& echo` will not run.
+
 ## Invariants (learned the hard way)
 
-1. **Do not install a plugin over an existing directory.** The installer refuses
-   with *"Plugin `<name>` already exists"* — that guard is a **config-key check**
-   (`app/pluginmanager.js:1612`), not a directory check — and the plugin scan
-   (`app/pluginmanager.js:1392-1399`) treats **every subdirectory** under
-   `/data/plugins/<category>/` as an installed plugin. To upgrade: move the old
-   tree **out** of the scan path, then place the new tree in its place.
+1. **Replace a plugin by swapping its tree — never install over it.** Two separate
+   mechanisms are involved:
+   - The store installer refuses with *"Plugin `<name>` already exists"* because
+     `checkPluginDoesntExist` rejects when the `<plugin_type>.<name>` key is already
+     in Volumio's plugin config (`app/pluginmanager.js:1600-1612`). That is a
+     **registry** check, not a filesystem check.
+   - `pluginFolderCleanup` (`app/pluginmanager.js:1384`) walks every subdirectory
+     under a plugin path as a plugin folder. Configured ones are left untouched;
+     unconfigured ones are **removed only when it is called with `cleanup === true`**
+     (the uninstall path) — the unconditional delete is commented out in the source,
+     noted there as having once deleted plugins when new ones were installed. The
+     same routine does remove stray non-directory entries and empty category
+     directories.
+
+   So move the old tree **out** of `/data/plugins/<category>/` and put the new tree
+   in its place: a tree left behind is walked on every cleanup pass and can be
+   deleted by a later uninstall.
 2. **Never touch `/data/configuration/<category>/<name>/config.json`** during a
    plugin upgrade. It is the user's live configuration and is not shipped in the
    package.
@@ -65,6 +93,15 @@ screen stays dead until a manual power cycle. See
    (`No space left on device`). The runtime journal lives in `/run` (volatile,
    capped at 30 MB) — so evidence from a crash is lost on reboot unless a
    different location is chosen deliberately.
-5. **Power health is a first-class suspect** for display failures: this board has
-   reported repeated undervoltage events, and a brownout during a restart is the
-   leading hypothesis for the kiosk dying.
+5. **Power health is a first-class suspect** for display failures. Measured
+   2026-09-19: **292 undervoltage events in ~12 h** — the first 24 s after power-on,
+   then 11–55 per hour, all day — each followed by `Voltage normalised` within
+   seconds, i.e. transient 5 V dips rather than a sustained brownout.
+   `vcgencmd get_throttled` reports sticky `0x50000`. The rail feeds an **NVMe SSD**
+   (238 GB, PCIe) plus the strip display, with no USB peripherals attached. A Pi 5
+   wants 5 V / 5 A (27 W) at its USB-C input.
+   - **PoE as an alternative supply:** the PoE budget has to cover the same load, and
+     an under-sized class (e.g. 802.3af, 15.4 W) tends to show up as subsystems
+     failing to initialise rather than as a clean boot — Wi-Fi is typically the first
+     casualty. Check the PoE class/budget and the splitter's 5 V regulation before
+     concluding that Wi-Fi itself is at fault.

@@ -9,7 +9,7 @@
 | # | Change | State |
 |---|---|---|
 | 1 | Now Playing plugin `1.0.6` → `1.1.1` | **APPLIED + VERIFIED** |
-| 2 | `volumio-kiosk.service` drop-in: `Restart=always`, `RestartSec=10` | **APPLIED** (not yet exercised) |
+| 2 | `volumio-kiosk.service` drop-in: `Restart=always`, `RestartSec=10` | **APPLIED + VERIFIED** |
 | 3 | journald persistent-journal drop-in | **ATTEMPTED → REVERTED** |
 
 ---
@@ -19,10 +19,15 @@
 ### Why the UI installer was not used
 
 Installing `1.1.1` from the plugin store fails with *"Plugin now_playing already
-exists"*. That guard is a **config-key check** (`app/pluginmanager.js:1612`), and
-the plugin scan treats every subdirectory under `/data/plugins/user_interface/` as
-an installed plugin (`app/pluginmanager.js:1392-1399`). So the upgrade was done as
-an explicit tree swap, which is also how a version downgrade would have to work.
+exists"*: `checkPluginDoesntExist` rejects when the `<plugin_type>.<name>` key is
+already in Volumio's plugin config (`app/pluginmanager.js:1600-1612`) — a registry
+check, not a filesystem check. So the upgrade was done as an explicit tree swap,
+which is also how a version downgrade would have to work.
+
+The old tree is moved **out** of `/data/plugins/user_interface/` rather than left
+beside the new one, because `pluginFolderCleanup` (`app/pluginmanager.js:1384`)
+walks every subdirectory there as a plugin folder and removes unconfigured ones when
+it runs with `cleanup === true` (the uninstall path).
 
 ### Procedure
 
@@ -56,7 +61,7 @@ needs no API key (`src/lib/api/open-meteo/`). The user's stored
 `weather.openWeatherMapApiKey` is simply no longer read; leaving it in place is
 harmless and it was **not** removed.
 
-Perl of the upgrade: the live config (idle-screen layout, localisation,
+Rest of the upgrade: the live config (idle-screen layout, localisation,
 backgrounds, metadata service settings) was preserved untouched throughout.
 
 ### Rollback
@@ -106,19 +111,33 @@ converts "black screen until someone power-cycles the board" into a ~10 s gap.
 Deliberately a **drop-in**, not an edit of `/lib/systemd/system/volumio-kiosk.service`
 (a vendor file that a system update would overwrite).
 
-### Not verified
+### Verified
 
-The restart path has **not yet been exercised deliberately** (no forced
-`systemctl restart volumio-kiosk` test has been run against production). Until that
-is done, treat "self-heals" as expected-but-unproven.
+Two tests, both run on the live device:
+
+| Test | Result |
+|---|---|
+| Manual unit restart (`systemctl restart volumio-kiosk`) | unit active again in 1 s, new X/Chromium within 2 s, display painted within 21 s |
+| **Simulated crash** — `SIGKILL` on `Xorg`, i.e. killing the unit's own process tree | systemd restarted the unit **by itself**: `NRestarts` went `0 → 1`, new `Xorg` after exactly 10 s (matching `RestartSec`), rendered screen after 30 s |
+
+The crash test is the one that matters, and `NRestarts` incrementing is what proves it:
+the restart was **automatic**, not a manual recovery. Afterwards the Now Playing app
+was still serving (`200`) and the idle screen rendered normally — so an X/Chromium
+death now costs ~30 s of black screen instead of requiring a power cycle.
 
 ### Not fixed by this change
 
-The underlying **power problem**. The board still logs undervoltage events and
-`vcgencmd get_throttled` reports sticky `0x50000`
-(*under-voltage has occurred* + *throttling has occurred*). A brownout during
-restart remains the leading hypothesis for the kiosk dying in the first place.
-This is a hardware/supply question, not a software one.
+The underlying **power problem**, which is now measured rather than assumed:
+**292 undervoltage events in ~12 h since boot** — the first 24 s after boot, then
+between 11 and 55 every hour, all day. Each event is followed by
+`Voltage normalised` within seconds, so these are transient 5 V dips rather than a
+sustained brownout. `vcgencmd get_throttled` reports sticky `0x50000`
+(*under-voltage has occurred* + *throttling has occurred*).
+
+The board runs an **NVMe SSD** (238 GB, PCIe) plus the strip display; `lsusb` shows
+no peripherals, only root hubs. A 5 V rail dipping this often under load remains the
+leading hypothesis for the kiosk dying in the first place, and for the earlier
+reboots. This is a hardware/supply question, not a software one.
 
 ---
 
