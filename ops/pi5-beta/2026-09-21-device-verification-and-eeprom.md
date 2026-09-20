@@ -68,7 +68,7 @@ Disclosure: a probe of the librespot `/events` endpoint (which expects a WebSock
 "WebSocket protocol violation" error and a "superfluous response.WriteHeader" warning in the journal.
 **Those two log lines were caused by this diagnostic probe, not by a defect.**
 
-## 4. Bootloader EEPROM — updated, awaiting one power cycle
+## 4. Bootloader EEPROM — updated and activated
 
 | | Before | After |
 | --- | --- | --- |
