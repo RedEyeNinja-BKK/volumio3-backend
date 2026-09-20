@@ -82,8 +82,30 @@ for the life of the plugin process.
 
 ## 4. Verified
 
-Device proof. `resolve-arch.sh` was copied to `/tmp` on the device **only** — the live plugin was
-never modified, confirmed with `git status` on the plugin directory.
+Device proof. The three files this change-set modifies are byte-identical to upstream 3.4.5 on the
+device, and `resolve-arch.sh` is not installed there. **measured**, re-checked when this record was
+committed:
+
+```
+cd /data/plugins/user_interface/peppy_screensaver
+git diff --exit-code -- index.js install.sh run_peppymeter.sh    -> no output, rc 0
+find . -name resolve-arch.sh                                     -> no match
+```
+
+Corroboration from the device's own installation. The plugin's `lib/` tree holds `arm/`, `armv7/`,
+`armv8/` and `x64/`, but only `arm/` is populated (`libpeppyalsa.so`, plus 831 files under
+`lib/arm/python/`); `armv7/`, `armv8/` and `x64/` are empty. Upstream's own installer therefore
+resolved this device to `arm` — the same answer this patch's resolver returns for it. **measured**
+
+Caveat — the plugin directory is **not** a clean checkout, and has not been since it was installed.
+`git status` there lists the tracked `packages/*/peppy-python-packages.tar.gz`, `volumio_peppymeter/`,
+`templates/` and `templates_spectrum/` trees as deleted, and `lib/arm/python/`, `lib/libpeppyalsa.so`,
+`node_modules/`, `screensaver/` and `theme-gallery/` as untracked. That is **normal post-install
+state, unrelated to this change-set**: Volumio installs a plugin by cloning upstream (`git reflog`:
+`clone: from https://github.com/foonerd/peppy_screensaver.git`, 2026-09-19 02:08) and then consuming
+and relocating files. Everything in that diff is dated 2026-09-19 02:08–11:05, before this session.
+An earlier revision of this record asserted the directory was "clean"; that was wrong — see the
+corrections in section 9.
 
 ```
 uname -m = aarch64   getconf LONG_BIT = 32   canonical VOLUMIO_ARCH = "arm"      (measured)
@@ -156,9 +178,26 @@ left out of this patch on purpose rather than silently.
 ## 8. Rollback
 
 Nothing to roll back on the device: this change-set touches no live device file. `resolve-arch.sh`
-was executed from `/tmp` and deleted afterwards; the plugin directory is clean.
+was copied to `/tmp`, executed there, and deleted afterwards; it was never installed into the plugin
+directory, and the three files this patch modifies are unaltered on the device.
 
 If the patch is later deployed to `volumio-pi5-beta`, roll back by restoring the three original
 files from the fork at upstream `main` (`efbd0ad`) and deleting `resolve-arch.sh`.
 `resolve-arch.sh` must land together with the scripts that call it, never alone — deploying it by
 itself is harmless, but deploying a caller without it reintroduces the hard error.
+
+## 9. Corrections to this record
+
+* **An earlier revision of this record claimed the plugin directory was clean.** It said the live
+  plugin "was never modified, confirmed with `git status` on the plugin directory", and that "the
+  plugin directory is clean". Both were false. `git status` in the plugin directory reports a large
+  deleted/untracked diff; all of it is dated 2026-09-19 02:08–11:05 and is caused by the ordinary
+  plugin installation procedure, not by this work. The claim those sentences were meant to support —
+  that this change-set modified nothing on the device — is true, and is now stated precisely and
+  re-measured in section 4. Corrected 2026-09-21.
+
+* **One device file is not accounted for.** `asound/Peppyalsa.postPeppyalsa.5.conf` shows as modified
+  with an mtime of 2026-09-20 23:10 — well after the installation, and after the boot at 22:35.
+  `index.js` and `install.sh` are the only files in the plugin that reference `postPeppyalsa`, so the
+  plugin itself is the likely writer, but that attribution is **not proven**. Recorded as an
+  observation; it is not folded into any claim above.
