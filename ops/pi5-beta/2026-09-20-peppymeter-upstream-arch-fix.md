@@ -201,8 +201,13 @@ itself is harmless, but deploying a caller without it reintroduces the hard erro
   that this change-set modified nothing on the device — is true, and is now stated precisely and
   re-measured in section 4. Corrected 2026-09-21.
 
-* **One device file is not accounted for.** `asound/Peppyalsa.postPeppyalsa.5.conf` shows as modified
-  with an mtime of 2026-09-20 23:10 — well after the installation, and after the boot at 22:35.
-  `index.js` and `install.sh` are the only files in the plugin that reference `postPeppyalsa`, so the
-  plugin itself is the likely writer, but that attribution is **not proven**. Recorded as an
-  observation; it is not folded into any claim above.
+* **`asound/Peppyalsa.postPeppyalsa.5.conf` — resolved: it is plugin-generated, not a manual edit.**
+  The file shows as modified with an mtime of 2026-09-20 23:10, which looked unexplained. It is
+  routine runtime output: `writeAsoundConfigModular()` in `index.js` reads the template
+  `Peppyalsa.postPeppyalsa.5.conf.tmpl`, substitutes the route placeholders, and writes
+  `${__dirname}/asound/Peppyalsa.postPeppyalsa.5.conf`. The `_off` suffixes in the working copy are
+  exactly that substitution — `index.js` lines 4791-4810 do `${alsaDirect}` -> `peppy2_off`,
+  `${alsaMeter}` -> `peppy1_off`, `${spotDirect}` -> `spotify1_off`, `${spotMeter}` -> `spotify2_off`.
+  The 23:10:57 write falls inside an audio-stack rebuild (user session stopped 23:10:45, MPD started
+  23:10:58, go-librespot 23:10:59, Volumio 23:11:00), so the plugin regenerated its own ALSA config
+  as part of that rebuild. It is regenerated on every such rebuild, i.e. self-healing. **measured**
