@@ -116,14 +116,36 @@ Remedy applied: `POST /player/volume {"value":100}` (HTTP 200), confirmed by re-
 `GET /player/volume` -> `{"max":100,"value":100}`. Applied while paused so nothing would start
 unexpectedly. **measured**
 
-**Defect 2 — the glitch mechanism, refined. measured (routing), inferred (corruption)**
+**Confirmed by the operator: Spotify now plays.** Re-verified ~72 minutes later, same boot: still
+`{"max":100,"value":100}`, and `GET /status` reports the same track with `volume: 100`, so the
+remedy held rather than decaying. This falsifies the competing candidate that Spotify's own audio
+path was broken. **measured**
 
-The earlier section-3 test produced glitching. The volume finding sharpens the explanation: librespot
-was writing *silence* into the shared FIFO while MPD wrote music. Something was audibly wrong, yet
-Spotify itself was never audible — so the glitching must have been **MPD's own stream** being damaged.
-Interleaving a second writer into one FIFO replaces spans of MPD's samples with the other stream's, so
-the audible result is dropouts/stutter rather than a mix. Corrupt input also explains why ALSA and
-CamillaDSP both logged nothing.
+Caveat for any future silence: the level lives in librespot's own mixer as runtime state, not in any
+config this record controls. Volumio declares `disableVolumeControl: true` and librespot runs
+`external_volume: false`, so the Spotify app's volume for this device governs librespot's mixer.
+If silence returns, read `GET /player/volume` first - that is the lever.
+
+**Defect 2 — the glitch: one FIFO is the mechanism, but the cause is NOT established. measured (routing), open (cause)**
+
+Routing is measured and unambiguous: `mpd.conf` uses `device "volumio"`, `go-librespot` uses
+`audio_device: "volumio"`, and `/etc/asound.conf` funnels that single PCM through one named FIFO,
+`/tmp/fusiondspfifo`, into CamillaDSP. Nothing in this graph mixes. Two clients opening it
+concurrently write into the same FIFO and their bytes interleave, replacing spans of one stream with
+the other's, so the audible result is dropouts/stutter rather than a mix.
+
+**That this interleaving is what was heard remains inference, not measurement, and two checks taken
+later argue for caution:**
+
+| Check, taken while librespot was paused | Result |
+| --- | --- |
+| Does a paused `go-librespot` hold the FIFO open? | **No** — no process held `/tmp/fusiondspfifo` at all. This weakens the "paused librespot keeps injecting silence" variant. |
+| Pipeline stability | The FIFO files carry an mtime far later than boot, so the FusionDSP/CamillaDSP pipeline is **re-created on playback events**. A restart concurrent with the second source is itself a candidate click/dropout. |
+| CPU contention during the incident | The PeppyMeter screensaver was burning a full core (102%) at the time and is **not** running in the later idle sample, so it cannot be dismissed on idle evidence. |
+
+Three candidates therefore remain live: genuine two-writer interleaving, a pipeline restart concurrent
+with the second source, and CPU starvation from the screensaver. Separating them needs one capture
+taken *during* a reproduction; the earlier attempt missed it because playback had already stopped.
 
 **Defect 3 — Volumio's UI desynchronises from the actual player. measured**
 
@@ -141,8 +163,9 @@ So the UI showed a paused Spotify track while a local file was audibly playing. 
 state machine stayed latched to the Spotify service and never followed MPD. This is a Volumio/plugin
 track-state defect, independent of the audio-path defects above.
 
-**Not yet isolated:** whether Spotify plays cleanly *alone* once its volume is non-zero. That is the
-next step and it needs the same phone-side action.
+**Resolved:** Spotify plays cleanly *alone* once its volume is non-zero, confirmed by the operator.
+That clears the Spotify audio path as a suspect and confines the simultaneous-play glitch to whatever
+changes when a second source appears - i.e. to the candidates in defect 2, which stay open.
 
 ## 4. Bootloader EEPROM — updated and activated
 
