@@ -93,8 +93,56 @@ CamillaDSP and go-librespot competed for the rest. A plausible **contributing** 
 second-order: the tested variable was the simultaneous case, which the routing analysis already
 explains. **measured (CPU), inferred (contribution)**
 
-**Not yet isolated:** whether Spotify plays cleanly *alone*. That experiment separates the two
-candidates and needs the same phone-side action. It is the cheapest next step.
+### 3a. Follow-up test — Spotify silent, and Volumio's UI desyncs
+
+The operator then re-tested. Reported: *Spotify starts but there is no sound; a local FLAC then
+plays, but the UI stays on the Spotify track.* All three symptoms were reproduced and diagnosed.
+
+**Defect 1 — Spotify renders digital silence. Root cause found and fixed. measured**
+
+| Source | Volume |
+| --- | --- |
+| `go-librespot` own volume (`GET /player/volume`) | **0** |
+| Volumio's reported volume | 100 |
+| Volumio's `disableVolumeControl` | **true** |
+| `go-librespot` `external_volume` | false |
+
+librespot reported the Spotify stream as playing and its position advanced, while its own volume was
+0. Volumio reported 100 but declares `disableVolumeControl: true`, so it does not push its level to
+librespot; librespot runs `external_volume: false` and therefore applies its own internal volume. The
+result is a correct, playing stream multiplied by zero — silence, with nothing logged as an error.
+
+Remedy applied: `POST /player/volume {"value":100}` (HTTP 200), confirmed by re-reading
+`GET /player/volume` -> `{"max":100,"value":100}`. Applied while paused so nothing would start
+unexpectedly. **measured**
+
+**Defect 2 — the glitch mechanism, refined. measured (routing), inferred (corruption)**
+
+The earlier section-3 test produced glitching. The volume finding sharpens the explanation: librespot
+was writing *silence* into the shared FIFO while MPD wrote music. Something was audibly wrong, yet
+Spotify itself was never audible — so the glitching must have been **MPD's own stream** being damaged.
+Interleaving a second writer into one FIFO replaces spans of MPD's samples with the other stream's, so
+the audible result is dropouts/stutter rather than a mix. Corrupt input also explains why ALSA and
+CamillaDSP both logged nothing.
+
+**Defect 3 — Volumio's UI desynchronises from the actual player. measured**
+
+At 01:29 the three views disagreed:
+
+| View | Said |
+| --- | --- |
+| Volumio state / UI | `service=spop`, `status=pause`, latched to a Spotify track URI (`spotify:track:...`) |
+| MPD | **playing** a local FLAC from the NAS |
+| `go-librespot` | `paused=true` |
+
+So the UI showed a paused Spotify track while a local file was audibly playing. The Volumio log shows
+`info: Spotify Stop` / `SPOTIFY: SPOTIFY STOP` emitted twice at 01:28:55 with the state then pinned at
+`status: "pause"` for the Spotify URI, followed by nothing but repeated `volumioGetState` polls — the
+state machine stayed latched to the Spotify service and never followed MPD. This is a Volumio/plugin
+track-state defect, independent of the audio-path defects above.
+
+**Not yet isolated:** whether Spotify plays cleanly *alone* once its volume is non-zero. That is the
+next step and it needs the same phone-side action.
 
 ## 4. Bootloader EEPROM — updated and activated
 
