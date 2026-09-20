@@ -2,9 +2,9 @@
 
 Device: `volumio-pi5-beta` (Raspberry Pi 5, Volumio 4.204, aarch64 kernel / armhf userland, NVMe boot)
 
-**Status: complete and verified.** The bootloader EEPROM update was activated by an operator power
-cycle at 2026-09-21 00:39, and the device came back healthy with the new bootloader running and the
-previous configuration retained (section 4).
+**Status: EEPROM update complete and verified** — activated by an operator power cycle at 2026-09-21
+00:39, device healthy on the new bootloader with the previous configuration retained (section 4).
+**The Spotify simultaneous-play case was then tested and reproduced audible glitching** (section 3).
 
 Provenance labels per `2026-09-19-i2s-dac-regression-and-revert.md`: **measured** = we measured it,
 **observed** = operator reported/confirmed, **claimed** = third-party.
@@ -50,23 +50,51 @@ demonstrably holding the PCM device. CamillaDSP is therefore not running under a
 name — it is spawned another way. **Consequence: `systemctl is-active camilladsp` is not a valid
 health check for the DSP path**; check for the process and the device holder instead.
 
-## 3. Spotify simultaneous-play — NOT TESTED, blocked on an operator action
+## 3. Spotify simultaneous-play — TESTED, and it reproduces a defect
 
-This case could not be exercised, and the reason is concrete rather than a matter of effort:
+Tested 2026-09-21 at ~00:43 by the operator: Spotify playback started from a phone while local MPD
+playback was running. **Result: audible glitching. observed (operator)**
 
-* The Spotify ALSA routes are disabled by configuration: the plugin setting `useSpotify` is **False**,
-  which is why the generated ALSA config carries `spotify1_off` / `spotify2_off`. **measured**
-* `go-librespot` is running and holds an authenticated session, but `POST /player/play` returns
-  **HTTP 400**: `disable_autoplay` is `true` and there is no active playback context. The daemon
-  needs a real Spotify client (phone or desktop app) to open a session; its local API has no
-  load-a-URI endpoint, so there is no tool-side way to start Spotify playback. **measured**
+Both players were confirmed active at the same moment. **measured**
 
-**To test:** with local playback running, start playback from a Spotify app targeting the device, and
-observe whether local playback survives and whether the journal shows ALSA contention.
+| Player | Output target | State |
+| --- | --- | --- |
+| MPD | ALSA device `volumio` | playing a local FLAC |
+| go-librespot | `audio_device: "volumio"` | playing a Spotify track |
 
-Disclosure: a probe of the librespot `/events` endpoint (which expects a WebSocket upgrade) produced a
-"WebSocket protocol violation" error and a "superfluous response.WriteHeader" warning in the journal.
-**Those two log lines were caused by this diagnostic probe, not by a defect.**
+They target the **same** ALSA PCM, and `/etc/asound.conf` routes it through a single named FIFO:
+
+```
+pcm.!default -> volumio -> volumioDsp (type plug, S32_LE, 2 ch)
+            -> fusiondsphook (type volumiohook)
+            -> fusiondspfifo (type volumiofifo, fifo "/tmp/fusiondspfifo")
+            -> CamillaDSP (FusionDSP)
+```
+
+**Diagnosis:** the FusionDSP pipeline has exactly one capture input — a named FIFO. Two ALSA clients
+opening `pcm.volumio` at the same time both write PCM into that same FIFO, so their byte streams
+interleave and CamillaDSP processes the spliced result. **inferred** — the routing is measured, the
+interleaving is the inference. Direct proof (counting the FIFO's writers while the condition was live)
+was NOT captured; by the time it was attempted, playback had already stopped.
+
+Supporting configuration facts, all **measured**:
+
+* PeppyMeter's plugin setting `useSpotify` is **False**, so the ALSA config it generates carries
+  `spotify1_off` / `spotify2_off`. The dedicated Spotify routes are disabled, so Spotify falls back to
+  the same default path as every other source.
+* CamillaDSP runs a single capture device, samplerate fixed at 44100, chunksize 2048, `queuelimit: 1`.
+* No kernel xruns or underruns were logged during the incident (0), and CamillaDSP's own log
+  (`/tmp/camilladsp.log`, warn level) stayed **empty — 0 bytes**, verified unprivileged. A glitch that
+  both layers report as clean is consistent with corrupt input rather than buffer starvation.
+
+Also observed during the incident: the PeppyMeter screensaver (`screensaver/volumio_peppymeter.py`,
+child of `run_peppymeter.sh`) was consuming **102% CPU** — a full core — while Xorg, chromium,
+CamillaDSP and go-librespot competed for the rest. A plausible **contributing** factor on a Pi 5, but
+second-order: the tested variable was the simultaneous case, which the routing analysis already
+explains. **measured (CPU), inferred (contribution)**
+
+**Not yet isolated:** whether Spotify plays cleanly *alone*. That experiment separates the two
+candidates and needs the same phone-side action. It is the cheapest next step.
 
 ## 4. Bootloader EEPROM — updated and activated
 
@@ -83,9 +111,16 @@ because the write had already happened. **measured**
 **Configuration retention.** The tool documents: *"Unless the -d flag is specified, the current
 bootloader configuration is retained."* No `-d` flag was used, so `BOOT_ORDER=0xf614`, `BOOT_UART=1`,
 `WAKE_ON_GPIO=0`, `POWER_OFF_ON_HALT=0` and `PCIE_PROBE=1` carry over. **claimed (tool documentation)**
-Caveat: the config-backup file the same documentation mentions was **not** written by the immediate
-path, so retention rests on that documented default and not on a backup artifact. Boot order matters
-here because this device boots from NVMe; the retained `0xf614` includes the NVMe entry.
+The tool also wrote a backup of the previous configuration, and it is present: the directory
+`/var/lib/raspberrypi/bootloader/backup/` contains `pieeprom-backup-20260921-002947.conf` (84 bytes,
+mode 0600), timestamped to the update. Its *contents* are root-only and were not read. **measured
+(existence, name, size, mode)** Boot order matters here because this device boots from NVMe, and the
+retained `0xf614` includes the NVMe entry.
+
+Correction: an earlier revision of this record stated that the documented config backup "was not
+written by the immediate path". That was wrong, and it was wrong for an instructive reason — the check
+ran a privileged `ls`/`cat` with stderr discarded, so a permission failure was silently reported as an
+absent file. The backup exists. See section 5.
 
 **ACTIVATED AND VERIFIED.** The agent's shell environment blocks restart and power commands by
 policy, so the power cycle was performed at the machine by the operator rather than in-band. After
@@ -137,6 +172,16 @@ display runs on KMS rather than the legacy framebuffer. None touch NVMe, I2S, DR
 Related tooling note: reading X state needs `XAUTHORITY` set to the session's auth file; `xset` has
 no `-auth` option, so `xset -display :0 -auth <file> q` fails with "Authorization required" even when
 the display is fine. Use `XAUTHORITY=<file> xset -display :0 q` as the session user.
+
+**A privileged read that fails silently is indistinguishable from an absent file.** Two conclusions in
+this record were contaminated the same way: a privileged `ls`/`cat` was run with `2>/dev/null`, the
+command was actually denied because the binary is not in the sudo NOPASSWD list (`ls`, `cat` and
+`fuser` are not; `rpi-eeprom-config`, `rpi-eeprom-update` and `find` are), and the resulting empty
+output was read as evidence of absence. One produced this record's now-corrected claim about the
+EEPROM backup; the other produced a false "CamillaDSP log is empty" reading, which happened to be true
+but had not actually been observed. Rule applied since: never discard stderr on a privileged command
+where the *absence* of output is itself the finding — check the exit status, and re-measure
+unprivileged where possible.
 
 ## 6. Unchanged by any of this
 
