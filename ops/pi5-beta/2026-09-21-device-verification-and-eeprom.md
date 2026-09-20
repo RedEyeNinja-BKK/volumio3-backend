@@ -2,8 +2,9 @@
 
 Device: `volumio-pi5-beta` (Raspberry Pi 5, Volumio 4.204, aarch64 kernel / armhf userland, NVMe boot)
 
-**Status: one action remains and it must be taken at the machine — a power cycle to activate the
-flashed bootloader EEPROM (section 4). Nothing is broken; the device is running normally.**
+**Status: complete and verified.** The bootloader EEPROM update was activated by an operator power
+cycle at 2026-09-21 00:39, and the device came back healthy with the new bootloader running and the
+previous configuration retained (section 4).
 
 Provenance labels per `2026-09-19-i2s-dac-regression-and-revert.md`: **measured** = we measured it,
 **observed** = operator reported/confirmed, **claimed** = third-party.
@@ -86,18 +87,28 @@ Caveat: the config-backup file the same documentation mentions was **not** writt
 path, so retention rests on that documented default and not on a backup artifact. Boot order matters
 here because this device boots from NVMe; the retained `0xf614` includes the NVMe entry.
 
-**ACTIVATION PENDING.** The EEPROM is written, but the running system still reports the previous
-bootloader; the new image takes effect at the next power-on. The agent's shell environment blocks
-restart and power commands by policy, so **this step has to be done at the machine.** The device is
-stable in the meantime — an EEPROM that is flashed but not yet active carries no risk.
-
-**Verify after the power cycle:**
+**ACTIVATED AND VERIFIED.** The agent's shell environment blocks restart and power commands by
+policy, so the power cycle was performed at the machine by the operator rather than in-band. After
+it, the device reported the new bootloader and a clean boot. **measured**
 
 ```
-vcgencmd bootloader_version        # expect 2026/05/26
-vcgencmd bootloader_config         # expect BOOT_ORDER=0xf614 and the other keys above
+vcgencmd bootloader_version   -> 2026/05/26 16:01:25
+                                 version 086b83e3332dfc8927c56762771d082f3077a1ae, capabilities 0x0000007f
+vcgencmd bootloader_config    -> BOOT_ORDER=0xf614   BOOT_UART=1   WAKE_ON_GPIO=0
+                                 POWER_OFF_ON_HALT=0  PCIE_PROBE=1     <- every key retained
 ```
-plus: device boots from NVMe, network returns, display returns, and audio still plays.
+
+Post-activation health, all **measured**: booted from NVMe (`/boot` on the NVMe first partition, root
+on the overlay); no leftover recovery artifact on the boot partition; services active (`mpd`,
+`go-librespot-daemon`, `volumio`, `volumio-kiosk`, `shairport-sync`); DSI display `connected` with the
+monitor reporting **On** at full backlight and the kiosk browser running; I2S card
+`sndrpihifiberry` present; 4 USB devices and a Bluetooth controller present; `get_throttled` = 0x0.
+
+Audio was re-proved end to end after the update: a track was played briefly and its position advanced
+1:1 with the wall clock (0:04 at T+4 s, 0:10 at T+10 s), with CamillaDSP holding the PCM device and
+0 xruns / 0 underruns. The test queue was returned to empty afterwards, which was its state before
+the test. **measured** The track selected happened to be a DSD file; no resampling setting was
+touched to play it.
 
 **Rollback.** The package upgrade removed `pieeprom-2025-12-08.bin` — the previously running image is
 no longer on the device, so there is no byte-exact rollback to the old bootloader. Rolling back means
@@ -108,7 +119,26 @@ ls /usr/lib/firmware/raspberrypi/bootloader-2712/latest/*.bin
 sudo rpi-eeprom-update -f <chosen image>
 ```
 
-## 5. Unchanged by any of this
+## 5. A measurement caveat found while verifying
+
+**Cross-boot error comparison is impossible on this device.** The natural way to check whether the
+bootloader change introduced anything is to diff this boot's error set against the previous boot's.
+That cannot be done here: `journalctl --list-boots` lists **only the current boot**, because the
+journal is configured with `Storage=volatile`. A naive diff therefore reports *every* current error
+as "new" — it is comparing against an empty set, not against a clean baseline.
+
+The 34 `-p err` lines in this boot were instead classified by inspection: `dhcpcd` chatter
+(`ipv6_addaddr1: Permission denied`, `dhcp_vendor`, `control_free`), `wpa_supplicant` nl80211
+registration, Samba `smbd`/`nmbd`/`winbindd` startup banners logged at err priority, `bluetoothd`
+BAP/ISO-socket notices, and `bcm2708_fb ... Disabling driver` — the last being expected, since the
+display runs on KMS rather than the legacy framebuffer. None touch NVMe, I2S, DRM or the bootloader.
+**measured**
+
+Related tooling note: reading X state needs `XAUTHORITY` set to the session's auth file; `xset` has
+no `-auth` option, so `xset -display :0 -auth <file> q` fails with "Authorization required" even when
+the display is fine. Use `XAUTHORITY=<file> xset -display :0 q` as the session user.
+
+## 6. Unchanged by any of this
 
 * The three files the PeppyMeter architecture fix touches (`index.js`, `install.sh`,
   `run_peppymeter.sh`) remain byte-identical to upstream 3.4.5 on this device. **measured**
