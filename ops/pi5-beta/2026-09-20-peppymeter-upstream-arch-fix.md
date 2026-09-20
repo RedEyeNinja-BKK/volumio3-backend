@@ -4,9 +4,10 @@ Device: `volumio-pi5-beta` (Raspberry Pi 5, Volumio 4.204, aarch64 kernel / armh
 Repo under contribution: `foonerd/peppy_screensaver` (Volumio 4 plugin, MIT, single maintainer)
 Our fork: `RedEyeNinja-BKK/peppy_screensaver`
 
-**Status: patch prepared and reviewed (three rounds, final verdict APPROVE); NOT submitted and NOT
-deployed. Submission upstream is a separate explicit decision that has not been taken. No device
-change was made in preparing it.**
+**Status: patch prepared and reviewed (three rounds, final verdict APPROVE); NOT deployed. The
+branch is published on our fork (`fix/arch-detection-fallback`, `eff0f419`, 2026-09-21) so the diff
+can be inspected; the upstream pull request is still NOT opened, and remains a separate explicit
+decision. No device change was made in preparing it.**
 
 Provenance labels per `2026-09-19-i2s-dac-regression-and-revert.md`: **measured** = we measured it,
 **observed** = operator reported/confirmed, **claimed** = third-party.
@@ -166,7 +167,11 @@ left out of this patch on purpose rather than silently.
 
 ## 7. Open
 
-* Submission of the branch and upstream pull request — **awaiting an explicit decision**.
+* Opening the upstream pull request — **awaiting an explicit decision**. The branch itself is
+  already published on our fork on 2026-09-21, verified by re-cloning it from GitHub: all five files
+  are byte-identical to the reviewed round-3 hashes above, and the bundled test suite passes 29/29
+  in the pushed copy. Publishing the branch does not notify the maintainer; opening the pull request
+  does.
 * The Volumio-platform root cause — a distro upgrade shadowing the base-layer `/usr/lib/os-release`
   and silently dropping every `VOLUMIO_*` key — affects far more than this plugin (Volumio's own
   `pluginmanager.js`, `webradio` and `system` plugin read the same file). Candidate for a separate
