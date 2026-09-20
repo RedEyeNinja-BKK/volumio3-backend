@@ -132,3 +132,41 @@ because the .list phantom claim survived — both superseded.)
 - `/home/volumio/audible-probe.py` — read-only audibility probe (FusionDSP fifo RMS/peak dBFS +
   CamillaDSP GetSignalLevels; play→measure→pause). Note: it blocks on the FIFO open if nothing
   is queued — queue a track first or run under `timeout`.
+
+## 5. E2 retry (operator GO, later same session) - APPLIED, awaiting operator cold start
+
+Operator asked to re-test the hifiberry-dac profile ("try e2 again") with the understanding
+they would check audibility after a power cycle. This is a legitimate re-experiment: the original
+E2 verification was upstream-of-failure (documented in the revert record), so a properly
+instrumented re-test has value - specifically to distinguish **silent-from-start** (framing
+mismatch, the documented E2 failure) from **plays-then-wedges** (the runtime wedge found
+today, a different mechanism).
+
+Applied via `/tmp/apply-e2.sh` (all 5 steps rc=0), with fresh pre-change backups + manifest
+at `/home/volumio/update-backups-20260920/*.pre-e2retry`. Resulting bytes:
+
+| file | hash | vs documented E2 after-hash |
+|---|---|---|
+| config.txt | `9ce4390d…7ca078` | **byte-identical** |
+| userconfig.txt | `2cf28b6c…0ec473` | **byte-identical** |
+| i2s_dacs/config.json | `1b54c836…9d530` | **byte-identical** |
+| asound.conf | `3a8c0a73…` | differs - applied to the *regenerated* (Sep-19 cold start) version; line-diff: only `card "DAC"` → `card "sndrpihifiberry"` |
+| alsa_controller/config.json | `2539d369…` | differs - operator's post-revert mixer values (Hardware/Digital) preserved; line-diff: only the two intended name fields |
+
+Safety gates passed pre-apply: `hifiberry-dac.dtbo` present in `/boot/overlays/`,
+`snd-soc-pcm5102a.ko.xz` + `snd-soc-hdmi-codec.ko.xz` in the running kernel's modules, and
+current state matched the documented "before" hashes exactly.
+
+**Rollback (one command):** `/home/volumio/update-backups-20260920/rollback-e2.sh` - restores
+all five files to pre-E2-retry bytes (manifest-verified), then one cold start. FAT-side
+recovery copies (`*.volumio-bak-20260919`) still exist as the PC-side fallback if a config
+prevents booting.
+
+**Post power-cycle protocol (operator + agent):**
+1. Operator: after boot, play music and **listen for 2-3 minutes / several tracks** - record
+   whether it is silent from start, plays cleanly, or plays-then-stops (the wedge signature).
+2. Agent checks the Pi-side signature: `dmesg` codec errors (expect 0), card name
+   (`sndrpihifiberry`), i2c client `1-0048` absent, then `audible-probe.py` for pipeline signal.
+3. If silent or wedged → run `rollback-e2.sh` + cold start; if it plays cleanly and stays
+   playing → the original E2 verdict was wrong in a way that matters (and the runtime wedge
+   may have been profile-dependent), which re-opens the 192k/DSD questions.
