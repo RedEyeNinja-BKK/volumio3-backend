@@ -1070,3 +1070,118 @@ not against the patches.
 4 times today (caught and logged, non-fatal) and is not from the spop handover path. Separately, the
 spop plugin logs the account's user object — including display name and email — into the journal on
 login. Both are pre-existing and untouched by this work.
+
+## 17. Live correlated capture of the operator's sequence — v6 confirmed, and a new state-ownership defect
+
+The operator ran a handover sequence while a new monitor recorded three streams against **one device
+clock**, so log lines and screen frames share a timeline instead of being reconstructed after the fact:
+
+| Stream | Source | Cadence |
+|---|---|---|
+| journal | `journalctl -f -o short-precise` | continuous |
+| state | router + go-librespot + mpc + **root-visible fifo holders** | 2 s |
+| screen | `scrot -t 55`, filename = epoch | 2 s |
+
+All three append to `/tmp/mon/timeline.log` (plus `/tmp/mon/journal.log`, `/tmp/mon/shots/`), started
+`2026-09-21 12:43:45.750`. Note the state sampler's own `sudo find` appears in the journal as `sudo[...]`
+lines and must be filtered when reading it.
+
+### 17.1 v6 is CONFIRMED — the crash is gone
+
+The sequence exercised the volatile path twice, including the exact transition that killed the core
+twice at §16.1: **measured**
+
+```
+12:43:51  info: Spotify is playing in volatile mode        <- volatile session starts
+12:44:12  verbose: UNSET VOLATILE: Service: spop            <- the §16.1 crash point
+12:44:12  SPOTIFY: UNSET VOLATILE                           <- callback entered and returned
+```
+
+then straight-line execution. Zero `FATAL ERROR` and zero `TypeError` since the monitor started, core
+MainPID **21258 unchanged** (the v6-reload process) and `NRestarts=0`. §16.5's outstanding item — "a real
+volatile session under v6" — is now closed; this is the same code path that previously exited the process
+with `status=1/FAILURE`.
+
+Both handover directions also re-passed, with the fifo holder set as the evidence: local→Spotify
+(12:43:50 `{go-librespot: 2, camilladsp: 1}`, `mpc=none`) and Spotify→local (12:44:12
+`{mpd: 2, camilladsp: 1}`). Single writer in every phase. **measured**
+
+Incidental answer to an open question: a **paused go-librespot releases the fifo entirely** — at
+12:43:59.813, with Spotify paused from the phone, the holder set was `{}`. **measured**
+
+### 17.2 The new defect: a *pause* re-arms volatile ownership, and the router never recovers
+
+From **12:44:14.761** onward the router and the audio device disagree, and they stay that way — still
+true at 12:46:30, over two minutes: **measured**
+
+```
+12:44:12.511  router=play/mpd/vol=False   | mpc=[playing] #1/1 0:01/3:47 | fifo={mpd:2, camilladsp:1}
+12:44:14.761  router=pause/spop/vol=True  | spotify paused=True pos=9278 frozen | mpc=[playing] 0:03/3:47
+12:45:32.553  router=pause/spop/vol=True  | spotify paused=True pos=9278 frozen | mpc=[playing] 1:21/3:47
+12:46:30      router=pause/spop/vol=True  | spotify paused=True pos=9278 frozen | mpc=[playing] 2:19/3:47
+```
+
+The local player owns the fifo and is audibly progressing; the router says Spotify owns playback and is
+paused. **Audio is correct — one writer, no collision. What is broken is state ownership.**
+
+### 17.3 Mechanism, in code
+
+`identifyPlaybackMode` has no notion of *which event* it is handling, and is called from both the
+`playing` and the `paused` cases:
+
+```js
+// index.js:451-461
+if (data && data.play_origin && data.play_origin === 'go-librespot') { isInVolatileMode = false; }
+else { isInVolatileMode = true; }
+if ((isInVolatileMode && currentVolumioState.service !== 'spop') || ...) {
+    self.initializeSpotifyPlaybackInVolatileMode();   // -> setVolatile({service:'spop'})
+}
+```
+
+The chain, all four steps visible in the capture:
+
+1. The operator starts local playback; the **mpd-side guard we added in §13.5/§14** correctly releases
+   Spotify — `12:44:12.955  Spotify Stop / SPOTIFY STOP`, i.e. the plugin sends `/player/pause`.
+2. go-librespot pauses and emits `{"type":"paused","data":{...,"play_origin":"your_library"}}`
+   (`12:44:12.672`).
+3. The `paused` case calls `identifyPlaybackMode`. `play_origin` is not `go-librespot`, so
+   `isInVolatileMode = true`; the router currently says `mpd`, so the condition is satisfied and
+   `initializeSpotifyPlaybackInVolatileMode()` runs — logging `Spotify is playing in volatile mode` for
+   an event that means Spotify **stopped** playing.
+4. `setVolatile({service:'spop'})` marks spop as the volatile owner. The router is now pinned to
+   `pause/spop/volatile=True` while MPD plays on.
+
+**A pause is not a takeover, and it must not claim the device.** The defect is upstream (this
+classification logic is Volumio's), but our mpd-side guard is what *initiates* the pause, so before our
+patch this specific trigger did not exist — the collision happened instead. Honest framing: the release
+logic converted an audible defect into a state-ownership defect.
+
+### 17.4 Visual correlation — the screen shows the wrong owner
+
+Screen frames read against the log timestamps above:
+
+| Screen time | Log state | What the screen showed |
+|---|---|---|
+| 12:43:45.751 | `play/mpd/vol=False` | meter, local track, **`flac`** badge — correct |
+| 12:43:54.922 | `play/spop/vol=True` | meter, Spotify track, **Spotify** badge — correct |
+| **12:44:15.507** | `pause/spop/vol=True`, **mpc playing** | meter showing the **Spotify track and Spotify badge** while MPD is the actual player |
+| **12:45:32.505** | `pause/spop/vol=True`, **mpc playing** | **idle weather/clock screensaver** — no player UI at all, while MPD is audibly playing |
+
+So the same desync surfaces two ways depending on where the screensaver timer sits, and this is the
+first time §14.3's "PeppyMeter shows the wrong track" and §10's state-ownership finding have been caught
+with timestamps and frames that line up.
+
+### 17.5 Severity and the fix direction (not applied)
+
+Not an audio defect: no interleaving, one writer, playback stable. It is a **control** defect — the UI
+and every volatile-aware command target Spotify while MPD owns the device, so the next UI action or
+phone command addresses the wrong player, and `stop`/`pause` from the UI will not stop the sound that is
+actually playing.
+
+Direction, for a reviewed change rather than an ad-hoc one: gate the volatile claim on an event that
+means Spotify is *taking* playback (`will_play`/`playing`), or explicitly ignore `play_origin` on
+`paused`, instead of classifying purely on `play_origin` with no event-type input. `identifyPlaybackMode`
+nearly distinguishes these — it simply is not told which case called it.
+
+**Status: not fixed. Left live and undisturbed so the operator can see it** — the desync is still
+present in the device state as this entry is written.
