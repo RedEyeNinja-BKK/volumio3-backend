@@ -126,7 +126,7 @@ config this record controls. Volumio declares `disableVolumeControl: true` and l
 `external_volume: false`, so the Spotify app's volume for this device governs librespot's mixer.
 If silence returns, read `GET /player/volume` first - that is the lever.
 
-**Defect 2 — the glitch: one FIFO is the mechanism, but the cause is NOT established. measured (routing), open (cause)**
+**Defect 2 — the glitch: one FIFO is the mechanism. Cause since CONFIRMED and fixed — see §7 and §8. measured**
 
 Routing is measured and unambiguous: `mpd.conf` uses `device "volumio"`, `go-librespot` uses
 `audio_device: "volumio"`, and `/etc/asound.conf` funnels that single PCM through one named FIFO,
@@ -134,8 +134,11 @@ Routing is measured and unambiguous: `mpd.conf` uses `device "volumio"`, `go-lib
 concurrently write into the same FIFO and their bytes interleave, replacing spans of one stream with
 the other's, so the audible result is dropouts/stutter rather than a mix.
 
-**That this interleaving is what was heard remains inference, not measurement, and two checks taken
-later argue for caution:**
+At the time this was written the interleaving was inference rather than measurement. It has since been
+confirmed by a controlled reproduction (§7), and the two cautionary checks below are explained rather
+than contradicted: a paused `go-librespot` really does release the FIFO (so it injects nothing), and the
+pipeline restart turns out to be a *consequence* of the rate switch in §7, not an independent cause.
+The checks as recorded at the time:
 
 | Check, taken while librespot was paused | Result |
 | --- | --- |
@@ -143,9 +146,10 @@ later argue for caution:**
 | Pipeline stability | The FIFO files carry an mtime far later than boot, so the FusionDSP/CamillaDSP pipeline is **re-created on playback events**. A restart concurrent with the second source is itself a candidate click/dropout. |
 | CPU contention during the incident | The PeppyMeter screensaver was burning a full core (102%) at the time and is **not** running in the later idle sample, so it cannot be dismissed on idle evidence. |
 
-Three candidates therefore remain live: genuine two-writer interleaving, a pipeline restart concurrent
-with the second source, and CPU starvation from the screensaver. Separating them needs one capture
-taken *during* a reproduction; the earlier attempt missed it because playback had already stopped.
+All three candidates have since been separated (§7-§8): genuine two-writer interleaving is the cause, the
+pipeline restart is downstream of the samplerate switch it forces, and CPU starvation from the
+screensaver is excluded — the defect reproduced deterministically with **zero** PeppyMeter processes
+running.
 
 **Defect 3 — Volumio's UI desynchronises from the actual player. measured**
 
@@ -263,3 +267,151 @@ unprivileged where possible.
 ---
 
 Nothing here is proposed upstream without a separate, explicit decision.
+
+## 7. The simultaneous-play defect — mechanism CONFIRMED by measurement, and fixed
+
+§3a left three candidates open. They are now separated by a controlled reproduction driven entirely from
+the device (Volumio REST API on `127.0.0.1:3000`, `go-librespot` local API on `127.0.0.1:9879`, `mpc`,
+`journalctl`), with no operator action required at any step. **measured**
+
+**(a) The DSP samplerate is set by whichever client opened the FIFO last — this is the missing half.**
+
+FusionDSP's `checksamplerate()` reads `/tmp/fusiondsp_stream_params.log`, which is written by the
+`hw_params_command` on `pcm.fusiondsphook` (`echo '%r,%f,%c,%d' >/tmp/fusiondsp_stream_params.log`) —
+one truncating line per open — and rewrites `samplerate:` in `camilladsp.yml` to match it. Observed
+content at the two moments of interest:
+
+| Active source | `fusiondsp_stream_params.log` | DAC `hw_params` |
+| --- | --- | --- |
+| Spotify took the device | `44100,S32_LE,2,32` | 44100, RUNNING |
+| Local playback took the device | `384000,S32_LE,2,32` | 384000, RUNNING |
+
+So the FIFO is not merely a shared buffer with two writers; it is a buffer whose consumer **retunes
+itself to the last opener**. When a second source starts, the rate flips underneath the first, which is
+still writing. A local DSD256 file (12.288 MHz, 48 kHz-family) is decimated by MPD by 32 to PCM
+`384000`; if the DSP has retuned to Spotify's `44100`, that stream is consumed at roughly a ninth of its
+rate — an inaudible smear. **This is the mechanism behind the "DSD has no sound" report, and it is the
+same defect as the glitch, not a DSD fault.** **measured**
+
+**(b) Volumio restarts the player it was just asked to stop.**
+
+`CoreStateMachine.prototype.syncState()` (statemachine.js ~801) reads a service `'stop'` arriving while
+`this.currentStatus === 'play'` as *"service has stopped without client request… finished playing its
+track block"* and walks the queue (`currentPosition++`, then `this.play()`).
+`CoreStateMachine.prototype.stop()` avoids that only by setting `currentStatus = 'stop'` **before**
+calling `serviceStop()` (~1240). A plugin calling another plugin's `stop()` directly skips that disarm,
+so the freed device is immediately taken back by the same service:
+
+```
+03:03:40  Spotify taking over from undefined: freeing the audio device
+03:03:40  ControllerMpd::stop
+03:03:40  CoreStateMachine::play index undefined      <- queue walk
+          mpc before: 0:12/3:39   after: 0:01/3:35    <- a different track, restarted onto the FIFO
+```
+
+**(c) Candidate 3 (screensaver CPU starvation) is excluded**: the reproduction above ran with **zero**
+PeppyMeter processes alive, and the restart plus rate fight reproduced identically every time.
+
+## 8. Fix applied — both directions, verified
+
+Two changes. Both are disarm-then-release: the state machine is put into `stop` *before* the other
+service is released, so no queue walk can push playback back onto the freed FIFO.
+
+| | File | Change | sha256 (live) |
+| --- | --- | --- | --- |
+| A | `/data/plugins/music_service/spop/index.js` | `freeAudioDevice()` — called from `parseEventState()` `'will_play'`. Sets `stateMachine.currentStatus='stop'`, `currentSeek=0`, `stopPlaybackTimer()`, **then** `mpdPlugin.stop()` | `584a844210ff…` |
+| B | `/volumio/app/plugins/music_service/mpd/index.js` | guard at the top of `clearAddPlayTrack()`: if `stateMachine.isVolatile === true` or `spop.state.status === 'play'`, call `spop.stop()` first | `569996fa6f20…` |
+
+Change A alone is not sufficient: Volumio's `stop()` only releases the **volatile** service
+(`if (this.isVolatile) return this.serviceStop();`, ~1234) and spop does not always hold that flag, so
+Spotify kept the FIFO when local playback started — observed directly as `librespot paused:false` with
+`state volatile:false` while local playback ran. Change B closes that direction. `spop.stop()` posts
+`/player/pause` to go-librespot, which closes its FIFO handle; a *paused* librespot holds nothing
+(consistent with the §3a check).
+
+Verification matrix, after a core reload (plugin JS is re-read on restart). **measured**
+
+| Test | MPD | Spotify | FIFO producers | `fusiondsp_stream_params.log` | queue walk |
+| --- | --- | --- | --- | --- | --- |
+| A. local alone | playing | — | CamillaDSP (+MPD) | `384000` | — |
+| B. Spotify takes over | **stopped, stays stopped** | playing | **go-librespot only** | `44100` | **`CoreStateMachine::play` count = 0** |
+| C. local takes over | playing | **`paused:true`** (handle released) | **CamillaDSP only** | `384000` | no collision |
+
+CamillaDSP measured during test C: state `Running`, capture peak −20.2 dB, playback peak −26.7 dB,
+clipped samples 0, stop reason `None`.
+
+Rollback: originals are preserved in `/home/volumio/pi5-fix-backup-20260921-021521/`
+(`spop-index.v1.js`, `mpd-index.js.orig`, plus the pre-existing `asound.conf`, `spop-config.yml.tmpl`,
+`peppy-config.json`, `MANIFEST.sha256`). Reload lever: read the authoritative pid from
+`systemctl show volumio -p MainPID --value` and `kill -TERM` it; the unit is `Restart=always`.
+**Do not** take the pid from `pgrep -f "node.*volumio" | head -1` — it can return another user's
+process, the kill fails with `Operation not permitted`, and a patched file silently stays unloaded
+(symptom: before/after tests look identical and the fix appears not to work).
+
+Note for future maintenance: change A lives in `/data` and survives Volumio updates; change B lives in
+`/volumio/app` (the app tree) and will be replaced by an OTA update.
+
+## 9. "DSD has no sound" — resolved, and it is not a DSD defect
+
+The DSD path itself is sound. Measured while a local DSD256 file played alone, via CamillaDSP's
+websocket API (`ws://127.0.0.1:9876`): `GetState Running`, `GetCaptureSignalPeak` −19.5/−19.1 dB,
+`GetPlaybackSignalPeak` −29.4/−27.9 dB, `GetProcessingLoad` 5.2 %, `GetClippedSamples` 0,
+`GetStopReason None` — real audio entering and leaving the DSP, with the DAC in `S32_LE`/`384000`
+`RUNNING`. Related facts: `mpd.conf` has `dop "no"`; Volumio-level resampling is off
+(`alsa_controller` `resampling=False`) and FusionDSP does the rate handling; the mpd plugin's
+`dsdVolume()` only sets volume 100 for `dsd_autovolume`; MPD has no mixer (`mixer_type none`,
+`no such mixer control: PCM`) so volume is `n/a` and playback is full-scale. **measured**
+
+The silence was therefore the §7(a) rate fight: whenever Spotify held the FIFO at 44100, the same DSD
+stream was consumed at the wrong rate. Fixed by §8 — both sources are now released properly, so the DSP
+rate always follows the one service that is actually playing.
+
+One metadata defect is *not* fixed and is reported as-is: while playing that DSD file, Volumio's
+`getState()` reports `samplerate: "11.28 MHz"`, `bitdepth: "1 bit"`, `trackType: "dsf"` — i.e. the
+source's format, not the `384000`/32-bit PCM that is actually on the wire.
+
+## 10. PeppyMeter with Spotify — investigation concluded: no change made, and the change that looks obvious is unsafe
+
+The brief was to establish whether meter data already flows for Spotify and only the display gate
+blocks it. Result: **the premise is refuted, and the flag that looks like the blocker is
+load-bearing.**
+
+1. **Meter data for Spotify exists.** With the FusionDSP bridge active, PeppyMeter runs in
+   `inline-meter (bridge on)` mode: CamillaDSP's playback device is `postDsp` →
+   `pcm.Peppyalsa` (`type meter`, scope `peppyalsa`) → `postpeppyalsa` → `volumioOutput` → hardware.
+   Spotify's audio goes through that same single chain (its `audio_device` is `volumio`), so the inline
+   meter is fed Spotify audio by construction.
+2. **`Spotify_ON` is not the gate that suppresses it.** It is referenced only at index.js:308 and 343,
+   and 343 is `if (DSP_ON || Spotify_ON || Airplay_ON || Other_ON)` — with `useDSP` true, `DSP_ON` alone
+   already passes. Peppy does in fact start the meter on a Spotify state push (`peppy_screensaver: Start
+   PeppyMeter` observed while Spotify was the playing service).
+3. **Do not un-force `useSpotify`.** That flag is forced false whenever the DSP bridge is on
+   (index.js:796-797, 803-804, 1411-1412). It is not redundant: `switch_Spotify(true)` rewrites the
+   librespot template's `audio_device` from `volumio` to `spotify` (index.js:4437-4441), but with the
+   bridge on the ALSA substitution forces `${spotMeter}`→`spotify2_off` and `${spotDirect}`→`spotify1_off`
+   (index.js:4809-4810). The live `asound.conf` therefore contains `pcm.spotify1_off` and
+   `pcm.spotify2_off` and **no `pcm.spotify`** — un-forcing the flag would point librespot at a PCM that
+   does not exist and take Spotify down entirely. **measured**
+4. **What actually suppresses the display is upstream of PeppyMeter.** With Spotify audibly playing and
+   local playback stopped, Volumio's master state reported `status:"stop" service:"mpd"`. PeppyMeter then
+   follows its own state logic (`Stop with metadata — grace timer 5000ms` → `Grace timer expired —
+   treating as genuine stop` → `Starting persist timer - 15s` → `Persist timer expired - stopping
+   PeppyMeter`), and the touch-display plugin sets `screensaver timeout to 0 seconds`, so no screensaver
+   and no meter. That is a state-ownership problem, not a meter or ALSA problem. **measured**
+
+No PeppyMeter/ALSA change was made — per the agreed fallback, this was left alone. One path remains
+unverified because it cannot be driven from the device: Spotify started from the Spotify app on a phone
+enters the plugin's *volatile* mode, and that is the path whose state pushes have been seen carrying
+`service=spop volatile=true`. A passive watch was armed on the device journal for that exact state; it
+ran its full window (90 polls, 3 h 13 m) and **expired without the state ever appearing**, so this last
+check remains open and is recorded as open rather than assumed.
+
+## 11. State after this work
+
+Playback was left in a consistent single-source state; nothing was left mid-transition. Two production
+files on the device now differ from their packages (the spop plugin and the mpd app plugin) — both with
+byte-exact rollback copies, both recorded here, and both the subject of an independent code review
+request raised before this entry was written. The defect class is a genuine Volumio behaviour (no
+service is released when a different service starts, and for `syncState` a service `stop` is
+indistinguishable from end-of-track), so the durable fix belongs upstream rather than only on this
+device.
