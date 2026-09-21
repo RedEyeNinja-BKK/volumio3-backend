@@ -951,3 +951,122 @@ Playback stopped (`status=stop, service=mpd`), Spotify left `paused` at the trac
 unchanged at 100 throughout (never modified by this session), fifo holder set back to empty, no
 error-level journal entries. No configuration, code, or ALSA-path file was changed in this session —
 every command was a read, a playback control, or a stop.
+
+**That last sentence stopped being true shortly after it was written: §16 documents the v5 regression
+found when the operator started a real volatile session, and the v6 fix applied for it. Read §16 before
+treating §14.2 as closed.**
+
+## 16. v5 crashed the core on the volatile path — v6 fixes it
+
+Status: **the operator's device was crash-looping the Volumio core on every volatile Spotify session,
+caused by the v5 change in §14.2. Fixed by v6 and verified as far as the device allows.** This is a
+correction to §14.2, which records v5 as the fix for the volatile path; v5 did fix the timing defect and
+in doing so exposed a worse one.
+
+### 16.1 The crash
+
+Two fatal errors occurred today, both the same signature, both on the volatile path: **measured**
+
+```
+Sep 21 12:30:23 volumio[6716]: verbose: UNSET VOLATILE: Service: spop
+Sep 21 12:30:23 volumio[6716]: ||||||||||||| WARNING: FATAL ERROR |||||||||||||
+Sep 21 12:30:23 volumio[6716]: TypeError: Cannot read properties of undefined (reading 'debugLog')
+Sep 21 12:30:23 volumio[6716]:     at ControllerSpotify.libRespotGoUnsetVolatile (spop/index.js:535:10)
+Sep 21 12:30:23 volumio[6716]:     at CoreStateMachine.unSetVolatile (statemachine.js:1555:27)
+Sep 21 12:30:23 volumio[6716]:     at CoreCommandRouter.volumioPlay (index.js:1406:21)
+Sep 21 12:30:23 volumio[6716]:     at Socket.<anonymous> (user_interface/websocket/index.js:241:35)
+...
+Sep 21 12:30:25 systemd[1]: volumio.service: Main process exited, code=exited, status=1/FAILURE
+Sep 21 12:30:26 systemd[1]: volumio.service: Scheduled restart job, restart counter is at 3.
+```
+
+and again at **12:31:08** on the replacement core (`restart counter is at 4`). Uncaught ⇒ the process
+exits ⇒ every plugin, the queue, and the audio path are torn down and rebuilt. `journalctl | grep -c
+'FATAL ERROR'` over the whole of 2026-09-21 returns **2**, both of these.
+
+### 16.2 Root cause: strict mode plus a bare invocation
+
+`spop/index.js` opens with `'use strict';`. The core invokes the registered callback as
+`this.volatileCallback.call()` — **no `thisArg`**. Under strict mode that leaves `this === undefined`
+inside the callback, so its first statement:
+
+```js
+ControllerSpotify.prototype.libRespotGoUnsetVolatile = function () {
+    var self = this;                  // undefined
+    self.debugLog('UNSET VOLATILE');  // <-- line 535, throws
+```
+
+throws immediately. The function is a prototype method that assumes it has a receiver, and v5 —
+by passing the function *reference* instead of calling it — created the first configuration in which
+the core can actually invoke it. §14.2's stated intent ("the callback is invoked BY THE CORE … Passing
+the function reference restores the intended behaviour") was correct about *when* it runs and missed
+*how* it is called.
+
+**Honest limit:** §14 records no fatal error before v5, and `grep -c 'FATAL ERROR'` for today confirms
+none occurred before 12:30. But that does **not** prove the pre-v5 code was safe on this path — the
+pre-v5 registration passed a *promise*, and `promise.call()` would also have thrown. What is
+established is narrower and sufficient: **the v5 bytes crash the core deterministically, twice in a row,
+the first time a volatile session occurred after they were loaded.** The pre-v5 behaviour on this path
+is not established and is not claimed.
+
+### 16.3 Why it took until 12:30 to appear
+
+`unSetVolatile` only invokes the callback when `volatileCallback` is set, i.e. only after
+`setVolatile` — which only happens on a genuine Connect-client session. §15.4's drives all carried
+`play_origin: "go-librespot"` and never entered the volatile branch (§15.5), so they could not reach the
+crash. The operator starting a song from the phone at **12:30:12** (`play_origin: "your_library"`,
+`context_uri` = their Liked Songs) was the first volatile session on the v5 bytes, and it crashed 11
+seconds later. **This is precisely the risk §15.5 flagged when it refused to treat Spotify's survival in
+§15.4 as evidence about v5.**
+
+### 16.4 v6 — bind the callback to its controller
+
+Patcher `ops/pi5-beta/patches/2026-09-21-handover-v6-callback-bind.py`. One line:
+
+```js
+callback: self.libRespotGoUnsetVolatile.bind(self)
+```
+
+`bind` is required rather than stylistic: the callback then carries its own receiver, so it is correct
+whether the core calls it bare, via `.call()` with no `thisArg`, or as a method.
+
+| | Value |
+|---|---|
+| live sha256 | `41cca7803943bc4f8811c9d0f832359a2fab9118f864c2e7a9f3e67bb5b2f609` |
+| staged sha256 | identical to live after apply (asserted in the patcher) |
+| rollback | `spop-index.v5.js` (149234 B), plus v4/v3/v2/v1/original |
+| syntax | `node --check` **on the staged bytes** before writing, then on the live file after |
+| core reload | `systemctl restart volumio.service`, MainPID `19518 → 21258` |
+
+Preconditions asserted before writing, so the patch cannot land on a drifted file: the target line is
+uniquely present, the file still opens with `'use strict';`, the callback definition still exists, and
+the patch is not already applied.
+
+**Mechanism proved in isolation** (a standalone node script, no production code involved): calling an
+unbound strict-mode prototype method with `this === undefined` throws
+`TypeError: Cannot read properties of undefined (reading 'logger')` — the same class as production's
+`'debugLog'` — while the bound form runs and logs normally.
+
+### 16.5 Verification status — and what is still owed
+
+Verified: the live bytes equal the staged bytes; `node --check` passes; the core reloaded cleanly
+(`active`, MainPID 21258), the spop plugin loaded, go-librespot initialised and its websocket
+established; local playback works under v6 (`service=mpd`, position advancing, single fifo writer =
+`mpd`, clean stop); **`grep -c 'FATAL ERROR'` since the v6 reload = 0**.
+
+**Not yet verified: a real volatile session under v6.** That needs a Connect client, so it cannot be
+driven from the device — the same wall as §12.4, and the wall that hid this bug. The next phone-started
+session is the test; a passive journal watch is the instrument. Until that lands, v6 is verified as far
+as the device allows and no further, and §14.2's claim should not be read as having been re-validated.
+
+**Review gate still open, and now overdue.** §12.7 item 3 remains unclosed and now covers v4, v5 and v6:
+none of the three has had an independent verdict, and v5 is the second patch in this series whose first
+real exercise found a defect the review would have been looking for. That is an argument for the gate,
+not against the patches.
+
+### 16.6 Unrelated, noted not chased
+
+`error: Failed callmethod call: TypeError: Cannot read properties of undefined (reading 'has')` appears
+4 times today (caught and logged, non-fatal) and is not from the spop handover path. Separately, the
+spop plugin logs the account's user object — including display name and email — into the journal on
+login. Both are pre-existing and untouched by this work.
