@@ -1519,3 +1519,111 @@ stable part (`playing#1/1`): **2 frames for the same 24 s**, one per transition.
 
 **End state:** one monitor instance (4 processes), `/tmp` at 6.8 M (1 %), device memory 908 MB of 7955,
 `/data/pi5-mon` 90 M on disk with a 400-frame ring.
+
+## 24. Independent review, round 1 — APPROVE-WITH-FINDINGS, and it found a real blocking defect
+
+Submitted through the sanctioned Hermes lane (`switchyard-smart-bounded-hermes`), run
+`run_f23323bd1a414251b62bad61a90d7526`, against a harness-frozen copy of the net deltas plus the patch
+scripts. Receipt `operations/review-receipts/pi5-handover-2026-09-21-v7v8.json`:
+**CLEAN-READONLY, authoritative, gating-eligible, `post_review_edits: []`** — nothing changed inside the
+window, so the verdict holds for exactly the bytes submitted. §12.7 item 3 is closed for v4–v8.
+
+**Honest note on the envelope:** the harness's Landlock launcher confines a *local* command, and this
+reviewer is remote, so the run was **not** Landlock-confined. What the receipt proves is fingerprint
+integrity (the subject bytes were not mutated while under review), not confinement of the reviewer.
+
+**Verdict: APPROVE-WITH-FINDINGS — 1 blocking, 7 non-blocking.** The reviewer independently verified the
+digests, compiled the patchers, and confirmed there is no defect in the `.bind(self)` change.
+
+### 24.1 The blocking finding — correct, and worse than stated
+
+> *"MPD takeover can proceed while Spotify remains the actual FIFO writer. The new guard catches a
+> failure from `spop.stop()`, logs it, and then continues starting MPD playback. […] a failed release
+> must prevent local playback from proceeding rather than merely logging."*
+
+Correct. Reading the code for the fix turned up a **second hole in the same guard that the finding
+implies but does not name**: `ControllerSpotify.prototype.stop()` sends **no pause at all** while
+`ignoreStopEvent` is set — a ~2 s window around a volatile init, i.e. *precisely* when another service
+may be taking the device. And a third fact that rules out the obvious cheap fix: `stop()` resolves its
+promise **immediately** and never waits for go-librespot, so awaiting it would not have been a fix
+either. The guard's release was therefore unverified *and* conditionally a no-op.
+
+### 24.2 Dispositions
+
+**Addressed in v9 (§25):** F1 (blocking, above), F2 (the rollback restored only `currentStatus`, leaving
+`currentSeek` at 0 and the playback timer stopped — an incomplete rollback that leaves a state machine
+reporting `play` with a wrong position), F7 (a trusted clean exit did not reset the failure counter).
+
+**Accepted, not changed — recorded rather than pre-solved:** F3 (the re-entrancy guard drops a second
+release request; the body is synchronous so it is unreachable today, and the coupling is stated);
+F4 (state marked `play` before the release — the ordering is required, because `identifyPlaybackMode`
+runs from the same handler and needs it); F5 (no proof that a takeover always emits `playing` first —
+**this is the branch the device cannot drive and where the previous round's crash lived; not claimed
+safe**); F6 (uptime is a proxy for a real writer session — bounded in practice, and a second guard risked
+misfiring on the normal pattern, where consecutive clean exits *are* the expected sequence); F8 (100 ms
+not proven sufficient — the alternative measured worse at up to 1.6 s).
+
+## 25. v9 — a confirming, fail-closed release
+
+Patcher `ops/pi5-beta/patches/2026-09-21-v9-review-response-fail-closed.py`, three files.
+
+* **`spop` gains `handoffAudioDevice()`.** Sends `/player/pause` **unconditionally** — deliberately
+  bypassing `ignoreStopEvent` — then polls go-librespot's own `/status` and resolves `true` only when it
+  reports `stopped`, `paused`, or no track, i.e. only when it is provably not writing the fifo. Resolves
+  `false` on any failure or after a 3 s deadline.
+* **The mpd guard fails closed.** It awaits the handoff; if it is not `true` it logs at error level,
+  raises a toast, and **returns without starting local playback**. With an older spop it does a
+  best-effort `stop()`, logs that the release *cannot* be confirmed, and still refuses — it does not
+  pretend. The original body moves intact into `_mpdStartLocalPlayback`.
+* **Complete rollback** in `freeAudioDevice()`: snapshot and restore `currentSeek`, and restart the
+  timer via `sm.startPlaybackTimer(prevSeek)`.
+* **`camilladsp-js.js`:** a trusted clean exit resets `consecutiveRespawns = 0`.
+
+| File | v9 sha256 |
+|---|---|
+| `spop/index.js` | `ccde7162e702a15162d0145f231d3d11e2e8f39ea1b4732338c9f9eea7429535` |
+| `mpd/index.js` | `5e991f80e9ec54a94f2f56a6f96b43a9fa8694af75dd6f6b7b442cc387e96b7e` |
+| `camilladsp-js.js` | `5dafbc797e79ae5dcac533df8e77637baa6d1ef05bb4a77149acbe90ed61e07b` |
+
+Rollbacks `spop-index.v7.js`, `mpd-index.v3.js`, `camilladsp-js.v8.js`; `node --check` on the staged
+bytes for each file, then on each live file; core reloaded, zero `FATAL ERROR`.
+
+**Verified on the device — and the fail-closed gate did not misfire:** `MPD taking over: releasing the
+audio device from spop` → `Handoff: pausing Spotify to release the audio device` → **`Handoff: Spotify
+released the audio device` 129 ms later**, then local playback started normally with a single fifo
+writer (`mpd:2, camilladsp:1`) and **zero refusals**. The release is now *confirmed* rather than assumed,
+and the confirmation is cheap in practice.
+
+Round 2 was submitted immediately after (`run_927de445de8a4d90a622948e6988b3c7`), on the frozen v9 bytes,
+asking specifically whether a fix that refuses playback could turn a rare collision into a routine
+refusal. **v9 is therefore deployed but not yet re-reviewed.**
+
+## 26. The handover gap, measured properly — and its root cause
+
+§12.5's instrument (camilladsp's own log) was confirmed unusable again: `mtime 15:20:26` against a
+process started `15:27:52`, so "0 underruns" means nothing was recorded. Replaced with the **ALSA
+hardware pointer** on the real output card (`/proc/asound/card1/pcm0p/sub0/status` — card1 is
+`RPi-simple`, the I2S DAC; my first attempt's glob was also matching card0/card7, which is how an earlier
+reading showed a phantom `RUNNING`).
+
+**Measured across a handover: `RUNNING → SETUP (50 ms) → CLOSED (251 ms) → PREPARED → RUNNING`, i.e.
+≈ 351 ms of silence.** **measured**
+
+Root cause identified from that trace: **the DAC is opened by camilladsp, not by the players.** The
+players write into the fifo; the hardware stream belongs to the DSP engine. So the gap is a *camilladsp
+lifetime* problem — when the last writer closes the fifo, camilladsp sees EOF and exits, and the DAC
+stream is torn down and rebuilt.
+
+**Experiment (not deployed).** A silent write-only keeper on the fifo prevents the EOF:
+
+* camilladsp **survived** a playback stop (same pid), with **zero respawns** and the DAC left in
+  `PAUSED` rather than `CLOSED`;
+* across a handover the gap fell from **351 ms to 201 ms**, and the transition became
+  `RUNNING → PAUSED → RUNNING` instead of a full teardown.
+
+That roughly halves the remaining residual and removes the engine restart entirely. It is **not
+deployed**: a keeper is a new persistent process whose lifetime must be tied exactly to camilladsp's, or
+a fifo with a writer and no reader is a hazard. The clean form is inside the DSP plugin's own supervisor
+(open the fifo for writing when camilladsp spawns, using a non-blocking open — a blocking open in the
+plugin's event loop would freeze Volumio — and close it in `processStop`). That is a real design change
+and should go through review rather than be slipped in.

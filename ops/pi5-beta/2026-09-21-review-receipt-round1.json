@@ -1,0 +1,379 @@
+{
+ "artifacts": {
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/REVIEW-REQUEST.md": {
+   "ctime_ns": 1789979495754821204,
+   "inode": 792606,
+   "mtime_ns": 1789979495754821204,
+   "sha256": "7ec5a55ee85b0cfbaea65a250803b2613a40b09208f2b841c268fa3e3f3d09a6",
+   "size": 9267
+  },
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-mpd-guard.py": {
+   "ctime_ns": 1789979475852643356,
+   "inode": 792597,
+   "mtime_ns": 1789979475852643356,
+   "sha256": "50e92cf8a64342a0600be4373834d4f051b7ea0c691cbf1d1eaa3a82ded21a17",
+   "size": 2459
+  },
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v4-unconditional-release.py": {
+   "ctime_ns": 1789979475852643356,
+   "inode": 792600,
+   "mtime_ns": 1789979475852643356,
+   "sha256": "8588375089f2e06402a865ee78adad5e829dc3dd0fa6e7007cf9c7c6a32e7780",
+   "size": 7449
+  },
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v5-volatile-callback-ref.py": {
+   "ctime_ns": 1789979475852643356,
+   "inode": 792601,
+   "mtime_ns": 1789979475852643356,
+   "sha256": "dd9636348db2da407a306093db07b428c76850d5f44cf4c5c2cd1716c9b4e59d",
+   "size": 2321
+  },
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v6-callback-bind.py": {
+   "ctime_ns": 1789979475852643356,
+   "inode": 792602,
+   "mtime_ns": 1789979475852643356,
+   "sha256": "5fcf3e3d7bc9c6896bd55dd81a5d11091ea8e2a1499e5b102aec2c8480ec7c44",
+   "size": 4057
+  },
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v7-pause-is-not-takeover.py": {
+   "ctime_ns": 1789979475852643356,
+   "inode": 792603,
+   "mtime_ns": 1789979475852643356,
+   "sha256": "e7170e2d36ce65c008a455af652f417273995ed26128812ca78da1627dadcac0",
+   "size": 7115
+  },
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-v7-identifyplaybackmode-differential.js": {
+   "ctime_ns": 1789979475853643416,
+   "inode": 792605,
+   "mtime_ns": 1789979475853643416,
+   "sha256": "7c2ec2cd6c471e399fc5933eaae9dcf02ea1c7ba3175af46a21588281f696be3",
+   "size": 7146
+  },
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-v8-camilladsp-clean-exit-respawn.py": {
+   "ctime_ns": 1789979475852643356,
+   "inode": 792604,
+   "mtime_ns": 1789979475852643356,
+   "sha256": "06afadfaedc97df392637c90fcbce575064cf40397d79b059dd9a1ce3a5cc5f4",
+   "size": 7632
+  },
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/camilladsp-js-stock-to-live.diff": {
+   "ctime_ns": 1789979468206190830,
+   "inode": 792594,
+   "mtime_ns": 1789979468206190830,
+   "sha256": "3142a5ab7cb64603bd3fa04968e4c9235760591ffb1bd85bda75e66e97d53b02",
+   "size": 2999
+  },
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/live-digests.txt": {
+   "ctime_ns": 1789979468208190948,
+   "inode": 792595,
+   "mtime_ns": 1789979468208190948,
+   "sha256": "4460f25dcea12797a5ab64acf2f029c815d2a149076f51347941453a4103f1ab",
+   "size": 242
+  },
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/mpd-index-stock-to-live.diff": {
+   "ctime_ns": 1789979468204190711,
+   "inode": 792593,
+   "mtime_ns": 1789979468204190711,
+   "sha256": "7a64e3a0a35b6b66a13ed6af04f332c3fc4770dd13dd2cdab1200b1ede6b19b0",
+   "size": 2057
+  },
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/spop-index-stock-to-live.diff": {
+   "ctime_ns": 1789979468202190593,
+   "inode": 792592,
+   "mtime_ns": 1789979468202190593,
+   "sha256": "b4d2099614e3a0eaa3cfcd97f6a5efd804a787b75958d874a90fee47c352cdee",
+   "size": 10880
+  },
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/stock-digests.txt": {
+   "ctime_ns": 1789979468209191007,
+   "inode": 792596,
+   "mtime_ns": 1789979468209191007,
+   "sha256": "6793b997a80d0b5cd51f1a06287e0862d1800f25803b6d3633776381353af5ce",
+   "size": 242
+  }
+ },
+ "authoritative": true,
+ "begin_cwd": "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21",
+ "closed_at": "2026-09-21T08:40:08+00:00",
+ "gating_eligible": true,
+ "label": "pi5-beta handover spop/mpd/camilladsp v4-v8",
+ "opened_at": "2026-09-21T08:31:54+00:00",
+ "phase": "end",
+ "post_hashes": {
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/REVIEW-REQUEST.md": "7ec5a55ee85b0cfbaea65a250803b2613a40b09208f2b841c268fa3e3f3d09a6",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-mpd-guard.py": "50e92cf8a64342a0600be4373834d4f051b7ea0c691cbf1d1eaa3a82ded21a17",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v4-unconditional-release.py": "8588375089f2e06402a865ee78adad5e829dc3dd0fa6e7007cf9c7c6a32e7780",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v5-volatile-callback-ref.py": "dd9636348db2da407a306093db07b428c76850d5f44cf4c5c2cd1716c9b4e59d",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v6-callback-bind.py": "5fcf3e3d7bc9c6896bd55dd81a5d11091ea8e2a1499e5b102aec2c8480ec7c44",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v7-pause-is-not-takeover.py": "e7170e2d36ce65c008a455af652f417273995ed26128812ca78da1627dadcac0",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-v7-identifyplaybackmode-differential.js": "7c2ec2cd6c471e399fc5933eaae9dcf02ea1c7ba3175af46a21588281f696be3",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-v8-camilladsp-clean-exit-respawn.py": "06afadfaedc97df392637c90fcbce575064cf40397d79b059dd9a1ce3a5cc5f4",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/camilladsp-js-stock-to-live.diff": "3142a5ab7cb64603bd3fa04968e4c9235760591ffb1bd85bda75e66e97d53b02",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/live-digests.txt": "4460f25dcea12797a5ab64acf2f029c815d2a149076f51347941453a4103f1ab",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/mpd-index-stock-to-live.diff": "7a64e3a0a35b6b66a13ed6af04f332c3fc4770dd13dd2cdab1200b1ede6b19b0",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/spop-index-stock-to-live.diff": "b4d2099614e3a0eaa3cfcd97f6a5efd804a787b75958d874a90fee47c352cdee",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/stock-digests.txt": "6793b997a80d0b5cd51f1a06287e0862d1800f25803b6d3633776381353af5ce"
+ },
+ "post_review_edits": [],
+ "pre_hashes": {
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/REVIEW-REQUEST.md": "7ec5a55ee85b0cfbaea65a250803b2613a40b09208f2b841c268fa3e3f3d09a6",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-mpd-guard.py": "50e92cf8a64342a0600be4373834d4f051b7ea0c691cbf1d1eaa3a82ded21a17",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v4-unconditional-release.py": "8588375089f2e06402a865ee78adad5e829dc3dd0fa6e7007cf9c7c6a32e7780",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v5-volatile-callback-ref.py": "dd9636348db2da407a306093db07b428c76850d5f44cf4c5c2cd1716c9b4e59d",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v6-callback-bind.py": "5fcf3e3d7bc9c6896bd55dd81a5d11091ea8e2a1499e5b102aec2c8480ec7c44",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v7-pause-is-not-takeover.py": "e7170e2d36ce65c008a455af652f417273995ed26128812ca78da1627dadcac0",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-v7-identifyplaybackmode-differential.js": "7c2ec2cd6c471e399fc5933eaae9dcf02ea1c7ba3175af46a21588281f696be3",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-v8-camilladsp-clean-exit-respawn.py": "06afadfaedc97df392637c90fcbce575064cf40397d79b059dd9a1ce3a5cc5f4",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/camilladsp-js-stock-to-live.diff": "3142a5ab7cb64603bd3fa04968e4c9235760591ffb1bd85bda75e66e97d53b02",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/live-digests.txt": "4460f25dcea12797a5ab64acf2f029c815d2a149076f51347941453a4103f1ab",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/mpd-index-stock-to-live.diff": "7a64e3a0a35b6b66a13ed6af04f332c3fc4770dd13dd2cdab1200b1ede6b19b0",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/spop-index-stock-to-live.diff": "b4d2099614e3a0eaa3cfcd97f6a5efd804a787b75958d874a90fee47c352cdee",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/stock-digests.txt": "6793b997a80d0b5cd51f1a06287e0862d1800f25803b6d3633776381353af5ce"
+ },
+ "problems": [],
+ "receipt_path": "/opt/turnstone/operations/review-receipts/pi5-handover-2026-09-21-v7v8.json",
+ "review_output_dir": "/home/vincent/shared-workspace/operations/review-receipts",
+ "review_subject": [
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-handover-mpd-guard.py",
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-handover-v4-unconditional-release.py",
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-handover-v5-volatile-callback-ref.py",
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-handover-v6-callback-bind.py",
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-handover-v7-pause-is-not-takeover.py",
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-v7-identifyplaybackmode-differential.js",
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-v8-camilladsp-clean-exit-respawn.py",
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/REVIEW-REQUEST.md",
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/camilladsp-js-stock-to-live.diff",
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/live-digests.txt",
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/mpd-index-stock-to-live.diff",
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/spop-index-stock-to-live.diff",
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/stock-digests.txt"
+ ],
+ "reviewer_report": null,
+ "rule": "A READ-ONLY review may write only into the review-output dir. Any change to a gated artifact or to the frozen subject marks the review INVALID \u2014 REVIEW CONTAMINATED BY MUTATION and its verdict is not authoritative.",
+ "run_ended_at": "1789979688",
+ "run_id": "run_f23323bd1a414251b62bad61a90d7526",
+ "sandbox": null,
+ "snapshot_fingerprints": {
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-handover-mpd-guard.py": {
+   "ctime_ns": 1789979514948957159,
+   "inode": 2902026,
+   "mtime_ns": 1789979475852643356,
+   "sha256": "50e92cf8a64342a0600be4373834d4f051b7ea0c691cbf1d1eaa3a82ded21a17",
+   "size": 2459
+  },
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-handover-v4-unconditional-release.py": {
+   "ctime_ns": 1789979514948957159,
+   "inode": 2902027,
+   "mtime_ns": 1789979475852643356,
+   "sha256": "8588375089f2e06402a865ee78adad5e829dc3dd0fa6e7007cf9c7c6a32e7780",
+   "size": 7449
+  },
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-handover-v5-volatile-callback-ref.py": {
+   "ctime_ns": 1789979514948957159,
+   "inode": 2902028,
+   "mtime_ns": 1789979475852643356,
+   "sha256": "dd9636348db2da407a306093db07b428c76850d5f44cf4c5c2cd1716c9b4e59d",
+   "size": 2321
+  },
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-handover-v6-callback-bind.py": {
+   "ctime_ns": 1789979514948957159,
+   "inode": 2902029,
+   "mtime_ns": 1789979475852643356,
+   "sha256": "5fcf3e3d7bc9c6896bd55dd81a5d11091ea8e2a1499e5b102aec2c8480ec7c44",
+   "size": 4057
+  },
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-handover-v7-pause-is-not-takeover.py": {
+   "ctime_ns": 1789979514948957159,
+   "inode": 2902030,
+   "mtime_ns": 1789979475852643356,
+   "sha256": "e7170e2d36ce65c008a455af652f417273995ed26128812ca78da1627dadcac0",
+   "size": 7115
+  },
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-v7-identifyplaybackmode-differential.js": {
+   "ctime_ns": 1789979514948957159,
+   "inode": 2902032,
+   "mtime_ns": 1789979475853643416,
+   "sha256": "7c2ec2cd6c471e399fc5933eaae9dcf02ea1c7ba3175af46a21588281f696be3",
+   "size": 7146
+  },
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-v8-camilladsp-clean-exit-respawn.py": {
+   "ctime_ns": 1789979514948957159,
+   "inode": 2902031,
+   "mtime_ns": 1789979475852643356,
+   "sha256": "06afadfaedc97df392637c90fcbce575064cf40397d79b059dd9a1ce3a5cc5f4",
+   "size": 7632
+  },
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/REVIEW-REQUEST.md": {
+   "ctime_ns": 1789979514948957159,
+   "inode": 2902020,
+   "mtime_ns": 1789979495754821204,
+   "sha256": "7ec5a55ee85b0cfbaea65a250803b2613a40b09208f2b841c268fa3e3f3d09a6",
+   "size": 9267
+  },
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/camilladsp-js-stock-to-live.diff": {
+   "ctime_ns": 1789979514948957159,
+   "inode": 2902023,
+   "mtime_ns": 1789979468206190830,
+   "sha256": "3142a5ab7cb64603bd3fa04968e4c9235760591ffb1bd85bda75e66e97d53b02",
+   "size": 2999
+  },
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/live-digests.txt": {
+   "ctime_ns": 1789979514948957159,
+   "inode": 2902024,
+   "mtime_ns": 1789979468208190948,
+   "sha256": "4460f25dcea12797a5ab64acf2f029c815d2a149076f51347941453a4103f1ab",
+   "size": 242
+  },
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/mpd-index-stock-to-live.diff": {
+   "ctime_ns": 1789979514948957159,
+   "inode": 2902022,
+   "mtime_ns": 1789979468204190711,
+   "sha256": "7a64e3a0a35b6b66a13ed6af04f332c3fc4770dd13dd2cdab1200b1ede6b19b0",
+   "size": 2057
+  },
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/spop-index-stock-to-live.diff": {
+   "ctime_ns": 1789979514948957159,
+   "inode": 2902021,
+   "mtime_ns": 1789979468202190593,
+   "sha256": "b4d2099614e3a0eaa3cfcd97f6a5efd804a787b75958d874a90fee47c352cdee",
+   "size": 10880
+  },
+  "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/stock-digests.txt": {
+   "ctime_ns": 1789979514948957159,
+   "inode": 2902025,
+   "mtime_ns": 1789979468209191007,
+   "sha256": "6793b997a80d0b5cd51f1a06287e0862d1800f25803b6d3633776381353af5ce",
+   "size": 242
+  }
+ },
+ "snapshots": {
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/REVIEW-REQUEST.md": "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/REVIEW-REQUEST.md",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-mpd-guard.py": "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-handover-mpd-guard.py",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v4-unconditional-release.py": "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-handover-v4-unconditional-release.py",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v5-volatile-callback-ref.py": "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-handover-v5-volatile-callback-ref.py",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v6-callback-bind.py": "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-handover-v6-callback-bind.py",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v7-pause-is-not-takeover.py": "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-handover-v7-pause-is-not-takeover.py",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-v7-identifyplaybackmode-differential.js": "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-v7-identifyplaybackmode-differential.js",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-v8-camilladsp-clean-exit-respawn.py": "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/2026-09-21-v8-camilladsp-clean-exit-respawn.py",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/camilladsp-js-stock-to-live.diff": "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/camilladsp-js-stock-to-live.diff",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/live-digests.txt": "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/live-digests.txt",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/mpd-index-stock-to-live.diff": "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/mpd-index-stock-to-live.diff",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/spop-index-stock-to-live.diff": "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/spop-index-stock-to-live.diff",
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/stock-digests.txt": "/home/vincent/shared-workspace/operations/review-freeze/pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942/stock-digests.txt"
+ },
+ "state": "CLOSED",
+ "token": "pi5-beta handover spop/mpd/camilladsp v4-v8-20260921T153154-809942",
+ "verdict": "CLEAN-READONLY",
+ "watch_before": {
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21": {
+   "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/REVIEW-REQUEST.md": {
+    "ctime_ns": 1789979495754821204,
+    "inode": 792606,
+    "mtime_ns": 1789979495754821204,
+    "sha256": "7ec5a55ee85b0cfbaea65a250803b2613a40b09208f2b841c268fa3e3f3d09a6",
+    "size": 9267
+   },
+   "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-mpd-guard.py": {
+    "ctime_ns": 1789979475852643356,
+    "inode": 792597,
+    "mtime_ns": 1789979475852643356,
+    "sha256": "50e92cf8a64342a0600be4373834d4f051b7ea0c691cbf1d1eaa3a82ded21a17",
+    "size": 2459
+   },
+   "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-spop-disarm.py": {
+    "ctime_ns": 1789979475852643356,
+    "inode": 792598,
+    "mtime_ns": 1789979475852643356,
+    "sha256": "69cc12738a8e79a45afc4c09c86a15eea1169d75394fc233c72dbf2f604fc152",
+    "size": 3979
+   },
+   "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v3-review-response.py": {
+    "ctime_ns": 1789979475852643356,
+    "inode": 792599,
+    "mtime_ns": 1789979475852643356,
+    "sha256": "136d9bf321b237043c0f6fae834ab8629d702c9f07ca862c2e6d557985e122e6",
+    "size": 9055
+   },
+   "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v4-unconditional-release.py": {
+    "ctime_ns": 1789979475852643356,
+    "inode": 792600,
+    "mtime_ns": 1789979475852643356,
+    "sha256": "8588375089f2e06402a865ee78adad5e829dc3dd0fa6e7007cf9c7c6a32e7780",
+    "size": 7449
+   },
+   "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v5-volatile-callback-ref.py": {
+    "ctime_ns": 1789979475852643356,
+    "inode": 792601,
+    "mtime_ns": 1789979475852643356,
+    "sha256": "dd9636348db2da407a306093db07b428c76850d5f44cf4c5c2cd1716c9b4e59d",
+    "size": 2321
+   },
+   "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v6-callback-bind.py": {
+    "ctime_ns": 1789979475852643356,
+    "inode": 792602,
+    "mtime_ns": 1789979475852643356,
+    "sha256": "5fcf3e3d7bc9c6896bd55dd81a5d11091ea8e2a1499e5b102aec2c8480ec7c44",
+    "size": 4057
+   },
+   "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-handover-v7-pause-is-not-takeover.py": {
+    "ctime_ns": 1789979475852643356,
+    "inode": 792603,
+    "mtime_ns": 1789979475852643356,
+    "sha256": "e7170e2d36ce65c008a455af652f417273995ed26128812ca78da1627dadcac0",
+    "size": 7115
+   },
+   "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-v7-identifyplaybackmode-differential.js": {
+    "ctime_ns": 1789979475853643416,
+    "inode": 792605,
+    "mtime_ns": 1789979475853643416,
+    "sha256": "7c2ec2cd6c471e399fc5933eaae9dcf02ea1c7ba3175af46a21588281f696be3",
+    "size": 7146
+   },
+   "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/2026-09-21-v8-camilladsp-clean-exit-respawn.py": {
+    "ctime_ns": 1789979475852643356,
+    "inode": 792604,
+    "mtime_ns": 1789979475852643356,
+    "sha256": "06afadfaedc97df392637c90fcbce575064cf40397d79b059dd9a1ce3a5cc5f4",
+    "size": 7632
+   },
+   "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/camilladsp-js-stock-to-live.diff": {
+    "ctime_ns": 1789979468206190830,
+    "inode": 792594,
+    "mtime_ns": 1789979468206190830,
+    "sha256": "3142a5ab7cb64603bd3fa04968e4c9235760591ffb1bd85bda75e66e97d53b02",
+    "size": 2999
+   },
+   "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/live-digests.txt": {
+    "ctime_ns": 1789979468208190948,
+    "inode": 792595,
+    "mtime_ns": 1789979468208190948,
+    "sha256": "4460f25dcea12797a5ab64acf2f029c815d2a149076f51347941453a4103f1ab",
+    "size": 242
+   },
+   "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/mpd-index-stock-to-live.diff": {
+    "ctime_ns": 1789979468204190711,
+    "inode": 792593,
+    "mtime_ns": 1789979468204190711,
+    "sha256": "7a64e3a0a35b6b66a13ed6af04f332c3fc4770dd13dd2cdab1200b1ede6b19b0",
+    "size": 2057
+   },
+   "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/spop-index-stock-to-live.diff": {
+    "ctime_ns": 1789979468202190593,
+    "inode": 792592,
+    "mtime_ns": 1789979468202190593,
+    "sha256": "b4d2099614e3a0eaa3cfcd97f6a5efd804a787b75958d874a90fee47c352cdee",
+    "size": 10880
+   },
+   "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21/artifacts/stock-digests.txt": {
+    "ctime_ns": 1789979468209191007,
+    "inode": 792596,
+    "mtime_ns": 1789979468209191007,
+    "sha256": "6793b997a80d0b5cd51f1a06287e0862d1800f25803b6d3633776381353af5ce",
+    "size": 242
+   }
+  }
+ },
+ "watch_roots": [
+  "/opt/turnstone/operations/reviews/pi5-handover-2026-09-21"
+ ]
+}
