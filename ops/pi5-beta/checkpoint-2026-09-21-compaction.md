@@ -255,7 +255,7 @@ correction), then §4–§5 above.
 |---|---|---|
 | **Power cycle to validate `userconfig.txt`** | not done; settings verified live, file not boot-tested | operator |
 | **v11 keeper** — 2 blocking findings outstanding | not deployed; needs a lifecycle redesign (teardown/ownership transfer path) | me, on instruction |
-| **Whether to keep pursuing the ~201 ms gap** | open question; the handover is already operator-approved as working | operator |
+| **Whether to keep pursuing the ~201 ms gap** | open question; the operator has **observed** the handover working (*"everything seems to be working exactly as intended with minimal if any clicks/pops"*) — an observation, not a formal acceptance | operator |
 | **F1/F2 layer-boundary window** | accepted as **not closable** at this layer; documented in code and record | closed by agreement |
 | **Two non-fatal third-party errors** | characterised, deliberately unpatched | parked |
 | **Underrun question (§12.5)** | still open; `camilladsp.log` proven unusable as a counter, and the §19 monitor confound is now gone so a fresh measurement would be clean | me, if wanted |
