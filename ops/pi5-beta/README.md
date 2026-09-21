@@ -196,3 +196,25 @@ its output is being piped, and a chained `&& echo` will not run.
      after, or a stopped stream yields a meaningless zero. An empty log means either no
      underruns or a blind instrument — positively control it (saturate the cores) before
      trusting a zero. It is **not** truncated per run, contrary to an earlier note.
+8. **The inline meter is DELIBERATE, and it is latency-HARMLESS — do not "fix" it by moving it
+   off the chain.** Two separate results, both measured 2026-09-21:
+   - *Deliberate:* `peppy_screensaver/index.js` picks the topology and logs the choice. With
+     `useDSP = True` (the Fusion bridge on, our device) it selects **`inline-meter (bridge on)`**
+     — `${alsaInlineMeter}` → `Peppyalsa`, inline in the audio path. The off-path alternative
+     (`route_policy "duplicate"` + `type multi` with the meter on a `dummy` branch) is used only
+     when the bridge is **off**, because the inline one is chosen for *"no multi, no dummy, no
+     rate constraint"*. Upstream knows inline causes `hw_params` trouble — their own comment on
+     the alternative says it *"avoids hw_params issues when meter is inline with main audio"* —
+     but the alternative imposes a rate constraint, which would conflict with the standing
+     **no-resampling** directive. So it is a deliberate trade-off, not an oversight.
+   - *Latency-harmless:* every handle on the meter FIFOs is **non-blocking** — `camilladsp`
+     writes `/tmp/myfifo` and `/tmp/myfifosa` with flags `04001` (`O_WRONLY|O_NONBLOCK`), the
+     core holds them `02404002`, the Python meter `02404000`. `libpeppyalsa.so` therefore
+     **cannot** stall the audio thread; a slow consumer drops data instead. **There is no
+     blocking to remove, so moving the meter "beside" the chain would not improve latency.**
+   - The real cost is the **consumer's CPU**, and it is tunable, not structural:
+     `screensaver/spectrum/config.txt` has `frame.rate = 30`, `update.ui.interval = 0.04`, and
+     renders a 1920×480 skin straight to `/dev/fb0`; the scope uses `spectrum_size 20`,
+     `smoothing_factor 60`, `decay_ms 500`. Reducing the frame rate or using a lighter skin is
+     the lever that actually addresses the ~1.1-core cost. The meter only runs during playback
+     (nothing is holding the FIFOs at idle).
