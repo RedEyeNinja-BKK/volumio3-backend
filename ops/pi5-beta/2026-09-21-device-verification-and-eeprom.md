@@ -1394,3 +1394,128 @@ not from these patches.
 **Review gate: unchanged and still open** — no independent verdict on v4, v5, v6 or v7. Nothing here was
 found by reading the code; v5's crash and v7's ownership defect each surfaced only when the bytes ran
 against a real Connect client.
+
+## 21. Restore points
+
+Two byte-exact snapshots on the device, plus a reusable generator:
+
+| Snapshot | Contents | Represents |
+|---|---|---|
+| `/data/pi5-snapshots/2026-09-21-v7-good` | 12 files, 440 K | the state confirmed working end-to-end in §20 |
+| `/data/pi5-snapshots/2026-09-21-v8-good` | 14 files, 676 K | adds `camilladsp-js.js` (v8) and the fusiondsp plugin `index.js` |
+| `/data/pi5-snapshots/make-snapshot.sh <label>` | — | regenerate either |
+
+Each holds a `files/` tree mirroring the original absolute paths, a `MANIFEST.sha256` verified at creation
+(12/12 and 14/14), an `ENVIRONMENT.txt` recording the versions and the hashes of spop, mpd,
+`camilladsp-js.js` and `asound.conf`, and a `restore.sh` that re-verifies the manifest before copying
+anything back. The manifests and environment files are recorded in this repo as
+`2026-09-21-v8-good-MANIFEST.sha256` / `-ENVIRONMENT.txt` (hashes only).
+
+The load-bearing set: spop `index.js`, mpd `index.js`, fusiondsp `camilladsp-js.js` and `index.js`,
+`/etc/asound.conf`, `/etc/mpd.conf`, the go-librespot config, the FusionDSP / PeppyMeter / Now Playing
+plugin configs, and the volumio + kiosk systemd drop-ins.
+
+**Excluded deliberately:** `/data/go-librespot/state.json` holds the Spotify credential blob and is not
+copied. The go-librespot `config.yml` **is** included — it carries only the `credentials` stanza
+(type/zeroconf settings), not the secret.
+
+## 22. The residual, measured — a clean FIFO close was being charged as a failure
+
+Chasing the "minimal but nonzero" clicks, the first concrete mechanism found was not in the handover
+patches at all but in FusionDSP's camilladsp supervisor.
+
+### 22.1 The mechanism
+
+`camilladsp-js.js:36-40` states the intent plainly: the process terminates *"because FIFO has been closed
+(hence we need to respawn the process immediately)"*. The implementation contradicted that. Every exit —
+including the **clean `code 0`** exit that happens on *every* ordinary playback stop, because the writer
+closing `pcm.volumio` closes the fifo and camilladsp reads EOF — incremented the failure counter, and the
+delay was `100 * 2^(n-1)`. The counter only resets after **30 s** of uptime, so any session shorter than
+that escalated. Measured on the device that day: **measured**
+
+| Delay | Count |
+|---|---|
+| 100 ms (attempt 1) | 15 |
+| 200 ms (attempt 2) | 8 |
+| 400 ms (attempt 3) | 4 |
+| 800 ms (attempt 4) | 1 |
+| **1600 ms (attempt 5)** | 1 |
+
+A rapid back-and-forth therefore pays a **doubling silence in which the fifo has no reader** — up to
+1.6 s here, and the cap would allow 10 s. That is the gap heard at a handover.
+
+### 22.2 v8
+
+Patcher `ops/pi5-beta/patches/2026-09-21-v8-camilladsp-clean-exit-respawn.py`. A clean exit that came
+well after spawn is a normal stop, so it no longer consumes the failure budget and respawns at a short
+**fixed** delay. A clean exit almost immediately after spawn (a genuine spawn/exit loop) still counts,
+still escalates, and still reaches `maxConsecutiveRespawns` — the protection is intact, only the false
+escalation on ordinary use is removed.
+
+| | Value |
+|---|---|
+| live sha256 | `9c1db0e3d845f64602961b9575e1e30272625c46e28a51794a4155760b04b504` |
+| rollback | `camilladsp-js.orig.js` (6306 B) in the fix-backup dir, and inside both snapshots |
+| syntax | `node --check` on the staged bytes, then on the live file |
+| core reload | MainPID `25770 → 12263` |
+
+**Verified:** five rapid local↔Spotify cycles produced **six respawns, all `100 ms (attempt 0/10)`** —
+flat, no escalation, and the counter never left zero because clean exits no longer count. Pre-fix the same
+path produced the table above. Single fifo writer in every phase, zero `FATAL ERROR`, zero
+`exceeded max consecutive respawns`.
+
+### 22.3 What is fixed and what is not
+
+**Fixed:** the escalating gap. A handover now costs a constant ~100 ms instead of up to 1.6 s.
+
+**Not fixed:** the ~100 ms itself. CamillaDSP is not a persistent daemon here — it exits when the fifo
+closes by design, and the 100 ms is the cost of getting it back. Removing that would mean keeping the
+engine alive across the gap, which is an architectural change to the plugin, not a patch.
+
+**Also worth noting:** this file is a **third-party Volumio plugin**. A plugin update would overwrite
+`camilladsp-js.js` and silently revert v8; the change is recorded here and captured in the v8 snapshot for
+that reason. It is also now the **fifth** unreviewed change in this series (v4–v8).
+
+## 23. Correction to §19 — my cleanup had not worked, and the same mistake recurred
+
+§19.2 said the frames had been deleted and §19.4 described the detach idiom; both left the impression the
+monitor had been dealt with. **It had not.** An hour later `/tmp/mon` was back at **1.4 G** of RAM and
+device memory at 2332 MB.
+
+The old screenshot loop had survived. I had killed the `journalctl` and `sampler` children (23255, 23256),
+but the `start.sh` parent (23252) and the screenshot subshell (23257) were still running and still writing
+to `/tmp` — and my "is it stopped?" check grepped `ps -eo comm,args` for `journalctl|sampler|scrot`, which
+cannot see a bash loop whose args are just `bash /tmp/mon/start.sh`, nor `scrot` which exists for ~50 ms
+every 2 s. **That is the §19-adjacent instrument-blindness lesson repeating on my own cleanup**: the check
+could not see the population it claimed to have cleared.
+
+Then it recurred twice more while fixing it:
+
+1. Killing by **open fds** on the monitor directory only sees processes holding one of those files at that
+   instant, and the sampler opens them per-write. "Restarting" the monitor therefore **accumulated
+   instances** — a full enumeration later found **seven processes from three separate `start.sh`
+   instances**, all writing the same `state.sig`, which made the capture fire every tick.
+2. Killing by **cmdline** still leaves the child `journalctl` behind: its command line contains the
+   redirect's target but not the monitor path, so it matches no pattern and is reparented to `init`. One
+   such orphan (pid 15762, ppid 1) was found still writing to `journal.log`.
+
+What actually works, and is now what the scripts do:
+
+* enumerate `/proc/*/cmdline` directly, with the patterns **assembled at runtime** so the enumerator and its
+  caller cannot match their own command line;
+* exclude **own ancestry** (self, parents, up to init) so a stop script can never kill its caller;
+* kill whole **process groups** so `journalctl`/`scrot` children go too — and never the script's own group;
+* match the journal stream by its signature (`journalctl -f -o short-precise`), which is what catches
+  orphans whose group leader is gone;
+* verify by re-enumerating, not by grepping process names.
+
+`ops/pi5-beta/scripts/2026-09-21-monitor-stop.sh`, `-start.sh`, `-monitor-sampler.py`. `start.sh` now
+calls `stop.sh` first, so it is **idempotent** and cannot accumulate.
+
+**A second bug in my own sampler:** `state.sig` included `mpc`'s second line verbatim, which carries a
+**live position** (`[playing] #1/1   0:08/2:49 (4%)`) and changes every second. Change-triggered capture
+therefore captured on every tick during playback — 23 frames in 24 s. The signature now keeps only the
+stable part (`playing#1/1`): **2 frames for the same 24 s**, one per transition.
+
+**End state:** one monitor instance (4 processes), `/tmp` at 6.8 M (1 %), device memory 908 MB of 7955,
+`/data/pi5-mon` 90 M on disk with a 400-frame ring.

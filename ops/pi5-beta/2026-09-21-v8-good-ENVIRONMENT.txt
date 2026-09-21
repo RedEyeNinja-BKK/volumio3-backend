@@ -1,0 +1,7 @@
+pi5-beta known-good snapshot: 2026-09-21-v8-good
+created : 2026-09-21 15:21:58 +0700
+kernel  : 6.12.75-v8+
+spop sha           : 64e76b74ebaad504d2855750bf84c6e175885b348486066ead7f9e5df5bc77ba
+mpd sha            : 4377a8f703c3bdc44e22d8e5b3e2c6d19cb4cb9229c623dc636bbf63a157fdf6
+camilladsp-js sha  : 9c1db0e3d845f64602961b9575e1e30272625c46e28a51794a4155760b04b504
+asound.conf sha    : a297a50484c37ffdbf6c2642ad24747098b0d324c4106b3485cd31033a666f2b
