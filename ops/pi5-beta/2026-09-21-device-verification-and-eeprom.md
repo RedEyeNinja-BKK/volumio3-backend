@@ -1274,3 +1274,50 @@ needs his phone. Monitor and watch remain armed for it.
 **Review gate:** now covers v4, v5, v6 and v7 — still no independent verdict on any of them. v5 and v7
 were both defects found by running the code against a real session rather than by reading it, which is
 the strongest argument yet for taking that gate seriously before any of this is offered upstream.
+
+## 19. Monitoring infrastructure, and a self-inflicted resource incident
+
+### 19.1 /tmp on this device is RAM
+
+`df -h /tmp` -> `tmpfs 3.9G ... mounted on /tmp`. `/`, `/home/volumio` and `/data` are all one
+disk-backed overlay (`230G`, ~4.5G used). **Nothing bulk should ever be written under `/tmp` on this
+device.** **measured**
+
+### 19.2 The incident
+
+The §17 monitor captured a screenshot every 2 s into `/tmp/mon/shots`. Over 1 h 40 m that reached
+**5,630 frames / 3.6 GB, filling the tmpfs to 93 % (327 MB free)** — roughly 3.6 GB of an 8 GB Pi's RAM
+consumed by instrumentation. Device RAM read **4,423 MB used** at the peak; after reclaiming it read
+**809 MB used**, and the tmpfs went **3.6 GB -> 11 MB**.
+
+Detected only when the watch expired and I went looking. The correlated artefacts were preserved first —
+`timeline.log` (5,991 lines), `journal.log` (19,800 lines) and 236 sequence-window frames pulled off the
+device — and only then were the frames deleted.
+
+**Why this matters beyond tidiness:** §12.5 already records that this machine is oversubscribed during
+playback, with the DSP underrun question still open. For 1 h 40 m the audio path ran with ~3.6 GB of
+RAM removed and an extra `scrot` + `python3` sampling pair ticking every 2 s. **Any load, underrun or CPU
+measurement taken between 12:43:45 and 14:34 must treat that monitor as a confound**, including the
+`ps`/`loadavg` figures quoted in §17. It does not affect the handover measurements themselves (fifo
+holder sets and router state are not load-sensitive), but it does affect anything about throughput or
+stutter.
+
+### 19.3 The monitor, in its safe form
+
+Now at `/data/pi5-mon/` (disk-backed), started `14:36:30`:
+
+* `journalctl -f -o short-precise` -> `journal.log`
+* state sampler (router + go-librespot + mpc + root-visible fifo holders) every 2 s -> `timeline.log`,
+  and a compact one-line `state.sig`
+* **screen capture is change-triggered** off `state.sig`, with a 60 s heartbeat, into a **ring buffer of
+  the newest 400 frames** — 4 frames in the first 21 s, against 5,630 for the old design
+
+Screenshot cadence is therefore a signal-driven instrument, not a video recorder. `setsid --fork` is the
+working detach idiom (`systemd-run` is not in the sudo NOPASSWD allowlist; plain `nohup ... &` left the
+ssh session hanging).
+
+### 19.4 Process note
+
+`pkill -f` / `pgrep -f` patterns are matched against the invoking command line too: a cleanup pattern
+containing the monitor's own path killed my own ssh shell (exit 255) mid-cleanup. Enumerate by pid, or
+choose patterns that cannot match the command doing the matching.
