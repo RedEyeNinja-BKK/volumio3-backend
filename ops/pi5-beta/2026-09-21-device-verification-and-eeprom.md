@@ -1185,3 +1185,92 @@ nearly distinguishes these — it simply is not told which case called it.
 
 **Status: not fixed. Left live and undisturbed so the operator can see it** — the desync is still
 present in the device state as this entry is written.
+
+## 18. v7 — a pause no longer claims volatile ownership (fixed, deployed, differential-tested)
+
+Operator GO received; §17.5's fix direction was implemented and deployed live on the device.
+
+### 18.1 The change
+
+Patcher `ops/pi5-beta/patches/2026-09-21-handover-v7-pause-is-not-takeover.py`. Four edits, one idea —
+ownership may only be claimed by an event that means Spotify is *taking* playback:
+
+```js
+case 'paused':
+    self.state.status = 'pause';
+    self.identifyPlaybackMode(event.data, false);   // v7: a pause is NOT a takeover
+...
+self.identifyPlaybackMode(event.data, true);        // only the 'playing' case may claim
+...
+ControllerSpotify.prototype.identifyPlaybackMode = function (data, isTakeoverEvent) {
+    ...classification of isInVolatileMode unchanged...
+    if (!isTakeoverEvent) { return; }               // v7 gate, before the ownership condition
+    if ((isInVolatileMode && currentVolumioState.service !== 'spop') || ...) {
+        self.initializeSpotifyPlaybackInVolatileMode();
+```
+
+Containment was checked before writing, not assumed: `initializeSpotifyPlaybackInVolatileMode` has
+exactly **one** call site (this one) and `stateMachine.setVolatile(` exactly **one** call (inside it), so
+the gate is the single choke point rather than a partial fix. `isInVolatileMode` is a module-level var
+written and read only inside `identifyPlaybackMode`, so leaving its assignment alone changes nothing for
+any other reader.
+
+| | Value |
+|---|---|
+| live sha256 | `64e76b74ebaad504d2855750bf84c6e175885b348486066ead7f9e5df5bc77ba` |
+| rollback | `spop-index.v6.js` (149977 B), plus v5/v4/v3/v2/v1/original |
+| syntax | `node --check` on the **staged** bytes before writing, then on the live file |
+| core reload | `systemctl restart volumio.service`, MainPID `21258 → 25770` |
+
+The patcher refuses to run unless the file still opens with `'use strict';`, the signature, both call
+sites, the ownership condition and both single-call-site properties are all uniquely present, and it
+asserts afterwards that the v6 `.bind(self)` fix is still there and that no flagless call site survived.
+
+### 18.2 Differential test on the shipped bytes — the harness can fail
+
+`ops/pi5-beta/scripts/2026-09-21-v7-identifyplaybackmode-differential.js`. It loads the **real bytes** of
+v6 (the rollback copy) and v7 (live) with every heavy dependency stubbed, injects the router state
+through the plugin's own `startSocketStateListener` on a fake socket, and replaces
+`initializeSpotifyPlaybackInVolatileMode` with a counter so the real `setVolatile` never runs. Nothing
+touches the production core.
+
+The argument shape is **derived from each file's own call site**, so the test cannot pass by calling the
+function the way we wish it were called. All three probes run against **one instance with one injected
+state**, so the pause result cannot be an artefact of missing state — the paired takeover probe proves
+the machinery is live. **measured**
+
+| Bytes | paused, origin=`your_library` | playing, origin=`your_library` | playing, origin=`go-librespot` |
+|---|---|---|---|
+| **v6** (was live) | **1 — bug reproduced** | 1 | 0 |
+| **v7** (now live) | **0 — fixed** | 1 | 0 |
+
+`ALL EXPECTATIONS MET`, exit 0. The v6 row is the negative control that matters: the harness *does*
+detect the defect, so v7's zero is a real gate and not a test that cannot fail.
+
+### 18.3 Regression verification on the device, after the reload
+
+| Step | router | fifo holders | single writer |
+|---|---|---|---|
+| idle after reload | `stop/mpd/vol=False` | `{}` | — |
+| local playback | `play/mpd/vol=False` | `mpd:2, camilladsp:1` | mpd |
+| Spotify takes over | Spotify playing | `go-librespot:2, camilladsp:1` | go-librespot |
+| local takes back | `play/mpd/vol=False` | `mpd:2, camilladsp:1` | mpd |
+| stop | `stop/mpd/vol=False` | `{}` | — |
+
+Both directions still work; the router ends **consistent** (`stop/mpd/vol=False`) instead of pinned to
+spop/volatile; zero `FATAL ERROR` since the deploy. The desync left live at §17.2 was cleared by the
+reload. **measured**
+
+### 18.4 What this does and does not prove
+
+**Proved:** the shipped v7 bytes do not claim volatile ownership when a `paused` event arrives while the
+router is on the local player, and still do on a takeover — with v6 as the control, on the same harness.
+
+**Not proved:** the whole-device end-to-end behaviour under a real phone-started session. The harness
+exercises the code path with an injected router state; it does not reproduce a Connect client. The
+definitive confirmation remains the same sequence the operator ran at §17, under the monitor, and it
+needs his phone. Monitor and watch remain armed for it.
+
+**Review gate:** now covers v4, v5, v6 and v7 — still no independent verdict on any of them. v5 and v7
+were both defects found by running the code against a real session rather than by reading it, which is
+the strongest argument yet for taking that gate seriously before any of this is offered upstream.
