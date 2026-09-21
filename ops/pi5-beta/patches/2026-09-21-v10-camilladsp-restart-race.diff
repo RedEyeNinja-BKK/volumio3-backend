@@ -1,0 +1,68 @@
+--- /opt/turnstone/operations/pi5-audio-fix-2026-09-21/camilladsp-js.live.js	2026-09-21 19:49:22.705681806 +0700
++++ /opt/turnstone/operations/pi5-audio-fix-2026-09-21/camilladsp-js.v10.js	2026-09-21 19:49:56.127673770 +0700
+@@ -43,7 +43,14 @@
+      * In case of error, we wait with exponential backoff to avoid hogging CPU.
+      * If too many consecutive quick respawns occur, stop respawning entirely.
+      */
+-    let listenerClose = function(code, signal) {
++    let listenerClose = function(child, code, signal) {
++
++        // v10 (pi5-beta 2026-09-21): act only on the close of the process that is
++        // currently current. processStop() now clears the handle itself, so a stale
++        // close arriving after a newer instance spawned must not clobber it -- that
++        // would both lose the new handle and trigger a duplicate spawn.
++        if (child !== camilla)
++            return;
+ 
+         let timeout = 0;
+         let uptime = Date.now() - lastSpawnTime;
+@@ -55,8 +62,15 @@
+ 
+         // .stop() has been called, hence the process is supposed to
+         // not to be respawned. Just stop here in case.
+-        if (run === false)
++        if (run === false) {
++            // v10: a DELIBERATE stop is not a failure. Previously this returned without
++            // touching the counter, so a stop/start pair -- exactly what FusionDSP's
++            // rate change does -- left the failure streak primed and the next early
++            // exit was charged as attempt N, giving the 1000/2000/4000 ms ladder that
++            // produced the observed ~100 s of silence after a switch.
++            consecutiveRespawns = 0;
+             return;
++        }
+ 
+         // If respawning was stopped due to too many failures, don't respawn
+         if (respawnStopped) {
+@@ -166,13 +180,14 @@
+ 
+         logger.debug(`camilladsp spawning process`);
+ 
+-        camilla = spawn(cdPath, args);
++        let child = spawn(cdPath, args);
++        camilla = child;
+         lastSpawnTime = Date.now();
+ 
+-     //   logger.info(`camilladsp spawned new process with pid ${camilla.pid}, instance ${uniqueid}, run: ${run}`);
++     //   logger.info(`camilladsp spawned new process with pid ${child.pid}, instance ${uniqueid}, run: ${run}`);
+ 
+         //camilla.on("exit", listenerExit);
+-        camilla.on("close", listenerClose);
++        child.on("close", (code, signal) => listenerClose(child, code, signal));
+ 
+     };
+ 
+@@ -198,6 +213,14 @@
+             // Hacky way to make this function synchronous
+             execSync(`while true; do grep camilladsp /proc/${pid}/cmdline || break; sleep 0.1; done`);
+ 
++            // v10 (pi5-beta 2026-09-21): clear the handle here, once the OS process is
++            // confirmed gone. Previously it stayed non-null until the ASYNC 'close' event
++            // fired, so an immediate start() -- exactly what a rate change does -- hit
++            // processSpawn's `if (camilla !== null) return;` guard and was silently
++            // DEFERRED to the close handler, i.e. delayed by the backoff rather than
++            // starting at once.
++            camilla = null;
++
+             logger.debug(`camilladsp stopped pid ${pid}`);
+ 
+         } catch (e) {
