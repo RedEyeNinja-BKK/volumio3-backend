@@ -1627,3 +1627,64 @@ a fifo with a writer and no reader is a hazard. The clean form is inside the DSP
 (open the fifo for writing when camilladsp spawns, using a non-blocking open — a blocking open in the
 plugin's event loop would freeze Volumio — and close it in `processStop`). That is a real design change
 and should go through review rather than be slipped in.
+
+## 27. Review round 2 — the confirmation was a proxy, not proof
+
+Run `run_927de445de8a4d90a622948e6988b3c7`; receipt
+`operations/review-receipts/pi5-handover-2026-09-21-r2-v9.json`, again **CLEAN-READONLY, authoritative,
+gating-eligible, no post-review edits**.
+
+**Verdict: APPROVE-WITH-FINDINGS.** Round 1's blocking finding was confirmed closed. A **new blocking
+finding** replaced it, and it was right:
+
+> *"Confirmation criterion can resolve true before FIFO ownership is actually released. … That proves only
+> the reported player state, not that go-librespot has closed its FIFO writer … The implementation
+> confirms a player-state response, not the actual resource release."*
+
+v9 confirmed `stopped || paused || !track` from go-librespot's `/status`. That is a statement about a
+*player*, not about the *resource* — and a paused player can still hold the fifo open. Three further
+findings were sharper than they looked: the `!b` term treated a malformed response body as proof of
+release (**fail-open inside a fail-closed fix**), the "definitely idle" fast path skipped confirmation
+entirely on possibly stale plugin state, and the handoff invocation sat outside the try/catch so a
+synchronous throw would reject rather than reach the refusal path.
+
+## 28. v10 — confirm the resource, not the state
+
+Patcher `ops/pi5-beta/patches/2026-09-21-v10-confirm-the-resource.py`.
+
+**We stopped asking a proxy and started asking the resource.** The fifo is what actually collides, so the
+handoff now establishes *who holds it*. Both go-librespot and the volumio core run as user `volumio`
+(verified), so go-librespot's descriptor table is readable from the plugin:
+
+* **`fifoHeldByGoLibrespot()`** — scans `/proc/*/comm` for `go-librespot`, reads its `/proc/<pid>/fd` and
+  resolves each link looking for the fifo. **It returns `true` when the answer cannot be determined**, so
+  callers fail closed rather than assume a release.
+* **`handoffAudioDevice()` no longer parses `/status` at all.** It checks the fifo, sends the pause if
+  held, then polls the fifo every 100 ms until free or a 3 s deadline. A `settled` guard stops a late
+  callback re-entering.
+
+One decision disposed of four findings: F1 (the confirmation **is** the invariant now), F2 (`settled`),
+F3 (nothing is parsed, so nothing can fail open), F4 (the fast path also requires
+`!fifoHeldByGoLibrespot()`, and refuses the shortcut entirely without the predicate). F6 was fixed by
+wrapping the call. Only F5 is unchanged and deliberate: a missing `handoffAudioDevice()` still refuses
+playback, because a partial deployment must not silently collide.
+
+| File | v10 sha256 |
+|---|---|
+| `spop/index.js` | `7908adb8a3529be7ad96b64547314ddac253aac615d95139c04201759be33508` |
+| `mpd/index.js` | `05e66b5c8c7bb47cd343018ed40304b451b06373a1a6487e7264d1998002812d` |
+| `camilladsp-js.js` | `5dafbc797e79ae5dcac533df8e77637baa6d1ef05bb4a77149acbe90ed61e07b` (unchanged this round) |
+
+Rollbacks `spop-index.v9.js`, `mpd-index.v9.js`; `node --check` on staged then live; core reloaded, zero
+`FATAL ERROR`.
+
+**Verified on the device:** `MPD taking over: releasing the audio device from spop` → `Handoff: pausing
+Spotify to release the audio device` → **`Handoff: audio device released - go-librespot no longer holds
+the fifo`** after **112 ms**, then local playback started normally with a single fifo writer and **zero
+refusals**.
+
+**A pattern worth naming plainly:** four of the last five rounds of this work have been *found* by one of
+two things — running the code against a real phone session, or an independent reviewer reading the exact
+bytes. The v9 → v10 sequence is the reviewer catching a real defect I had just introduced while fixing a
+previous one. That is the gate working, and it is why v10 goes straight back for a third round rather
+than being treated as settled.
