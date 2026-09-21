@@ -167,3 +167,32 @@ its output is being piped, and a chained `&& echo` will not run.
      timeline, the Wi-Fi driver bring-up lines, interface/route/rfkill state and the
      eth0 link state to `/data` **at boot** — before Wi-Fi fails and the box becomes
      unreachable. Arm it, power over PoE, switch back, then read the report.
+6. **FusionDSP regenerates `camilladsp.yml` from `camilladsp.conf.yml` — the TEMPLATE is
+   the authority, never the generated file.** A fix written into
+   `/data/configuration/audio_interface/fusiondsp/camilladsp.yml` is silently lost at the
+   next playback start. Measured 2026-09-21: the generated file's mtime tracks **playback**
+   start, not service start — a full `volumio vrestart` does **not** regenerate it, but
+   starting playback does (generated `19:14:49`, camilladsp started `19:14:50`). The
+   template also carries the substitutions (`${outputsamplerate}`, `${chunksize}`,
+   `${resampling}`, `${composeout}`, `${resulteq}`, `${mixers}`, `${composedpipeline}`).
+   - Corollary: this is why `enable_rate_adjust` kept reverting to `true` — it is hardcoded
+     in the template, not derived from plugin config. Fixed 2026-09-21
+     (`2026-09-21-rate-adjust-template-fix-and-underrun-ab.md`); backup at
+     `camilladsp.conf.yml.orig-20260921`.
+7. **The VU meter is INLINE in the audio path, and it costs more than the DSP.** The PCM
+   chain is `postDsp → Peppyalsa (type meter, scopes.0 peppyalsa) → postpeppyalsa → hardware`,
+   so the meter's ALSA plugin is not beside the stream, it is in it. Measured during DSD256 →
+   384 kHz playback: **`python3` (PeppyMetre) 112.5 % CPU vs `camilladsp` 18.8 %** — about
+   6× the DSP. If audio glitching ever becomes audible, this is the first lever to examine,
+   not the overclock (which is already at the 2800 MHz ceiling with `0x0` throttling).
+   - Related sizing fact: the output buffer is **8192 frames = 21.3 ms at 384 kHz** but
+     186 ms at 44.1 kHz — the safety margin shrinks ~8.7× as the rate rises, which is why
+     high rates are the sensitive case. `camilladsp` also runs `SCHED_OTHER`, nice 0, with
+     no realtime priority, against a concurrent >1-core decorative load.
+   - **Counting underruns:** `camilladsp` is launched `-l warn` and underruns log at WARN, so
+     `/tmp/camilladsp.log` is a usable counter — but it is **append-mode and survives
+     restarts**, so count *deltas in bytes*, and ALWAYS gate a sample on
+     `head -1 /proc/asound/card1/pcm0p/sub0/status` reading `state: RUNNING` both before and
+     after, or a stopped stream yields a meaningless zero. An empty log means either no
+     underruns or a blind instrument — positively control it (saturate the cores) before
+     trusting a zero. It is **not** truncated per run, contrary to an earlier note.
