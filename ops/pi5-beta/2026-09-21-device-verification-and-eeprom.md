@@ -1918,3 +1918,45 @@ Fixed by adding `--emit` to the patcher and freezing the exact staged bytes
 `abb3d51e4bf2d344d5f9bd165602f1d9bfd8d098e0019b9385a191a3c530572d`, verified to match the digest the
 patcher reports on the device). Round 2 submitted with an explicit leak-analysis ask:
 `run_a4a8026568b0426cbf0f306adb1b228a`.
+
+### 34.1 Round 2 — REJECT, four blocking findings, all correct
+
+Round 2 read the staged bytes and found what I had not: the keeper had **no lifecycle generation and no
+in-flight guard**. It also **cleared the hazard I had asked about**, which was the one thing I most
+needed to be told.
+
+| # | Finding | Status |
+|---|---|---|
+| F1 | a stale in-flight `fs.open` callback can return after a later `start()`, see `run === true`, and install a stale descriptor | fixed (generation) |
+| F2 | repeated `openFifoKeeper()` calls overlap; each assignment overwrote **and leaked** the previous fd | fixed (in-flight guard) |
+| F3 | the ENXIO retry timer was not invalidated by a later successful open | fixed (generation + clear on success) |
+| F5 | a respawn timer scheduled by an earlier lifecycle could act on a later one | fixed (timer carries the generation) |
+| F4, F6, F7 | non-blocking; the keeper is deliberately left open across a normal respawn | unchanged, intended |
+
+**The hazard answer, verbatim in substance:** *"open(O_WRONLY\|O_NONBLOCK) when no reader currently has
+the FIFO open returns -1 with ENXIO. It does not block waiting for a reader. … defined by the Linux FIFO
+open semantics and is independent of the specific kernel minor version."* So the event loop cannot stall
+on the keeper's own open — that is kernel semantics, not luck, and the code comment now says so.
+
+It also corrected my **conclusion** about the other direction, correctly: a writer-only keeper does not
+count as a reader and so does not unblock another writer's blocking open — but that does not make the
+later open *safe*. The hang condition is camilladsp's **absence**, which exists with or without a keeper.
+The honest statement is that the keeper neither adds nor removes that hazard; what it changes is that
+camilladsp no longer exits on its own.
+
+### 34.2 v11b — the generation-guarded version
+
+Staged sha256 `f3621da85bb6dd71a62fba4c13fe22af2ffd98af7fbfff33ab5bbd1101415a4e` (12814 bytes),
+`node --check` clean, still **not deployed**. One generation counter captured by every keeper operation
+and advanced by both `closeFifoKeeper()` and `this.start()`; one in-flight flag so that an overwrite — and
+therefore a leaked descriptor — is *unrepresentable* rather than merely unlikely. Round 3 submitted as
+`run_5bcd49a368ff4c6196e256f7e23faa57`.
+
+**A process note on my own patch discipline.** Writing this patch I asserted six exact occurrence counts
+and got **four of them wrong** (`keeperGeneration` 6 vs 8, `closeFifoKeeper` 3 vs 4, `fifoKeeperOpening =
+false` 2 vs 3 twice). Each was a guess about a string appearing in my own new code, including in
+comments, and each cost a cycle. The fix was to stop asserting invented totals and assert **properties**
+instead — `generation !== keeperGeneration` appears exactly twice (the open guard and the callback
+supersede check), `keeperGeneration++` exactly twice, `closeFifoKeeper();` exactly twice as *calls*. That
+is a better assertion style generally: a count of a raw identifier is fragile against comments, whereas a
+count of a whole expression is a claim about behaviour.
