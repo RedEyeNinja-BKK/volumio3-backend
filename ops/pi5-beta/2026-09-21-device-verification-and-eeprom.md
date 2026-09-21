@@ -1321,3 +1321,76 @@ ssh session hanging).
 `pkill -f` / `pgrep -f` patterns are matched against the invoking command line too: a cleanup pattern
 containing the monitor's own path killed my own ssh shell (exit 255) mid-cleanup. Enumerate by pid, or
 choose patterns that cannot match the command doing the matching.
+
+## 20. v7 CONFIRMED end-to-end on a real phone session — the §17 defect does not occur
+
+The watch fired at **15:11** on a genuine operator-driven back-and-forth between Spotify and local: the
+first real phone-started volatile session on the v7 bytes. Both outstanding items from §18.4 are now
+closed. **measured**
+
+### 20.1 The exact §17 trigger fired — twice — and nothing happened
+
+The defect needed a `paused` event carrying a non-`go-librespot` origin to arrive while the router sat on
+the local player. That is precisely what arrived: **measured**
+
+```
+15:11:26.919  verbose: UNSET VOLATILE: Service: spop            <- v5's crash point; runs clean (v6)
+15:11:26.928  info: MPD taking over: releasing the audio device from spop
+15:11:27.097  SPOTIFY: received: {"type":"paused","data":{...,"play_origin":"your_library"}}   <- §17 trigger
+15:11:27.105  (same, again)
+15:11:34.510  SPOTIFY: received: {"type":"paused","data":{...,"play_origin":"your_library"}}   <- §17 trigger
+```
+
+**No `Spotify is playing in volatile mode` follows either one.** The next volatile claim in the whole
+session is `15:11:46.663`, and it follows a genuine takeover
+(`15:11:45.799 Spotify taking over (router said service=mpd, status=play)`) — the correct trigger, still
+working. At §17 the identical paused event produced the claim and pinned the router for over two minutes.
+
+### 20.2 The router no longer gets pinned
+
+State samples across the transition, from the monitor's timeline: **measured**
+
+| Time | router | Spotify | mpc | fifo |
+|---|---|---|---|---|
+| 15:11:20–24 | `play/spop/vol=True` | playing, `your_library` | none | `go-librespot:2, camilladsp:1` |
+| 15:11:26.962 | **`stop/mpd/vol=False`** | paused, pos frozen 10707 | **playing** | **`mpd:2, camilladsp:1`** |
+| 15:11:29.223 | **`play/mpd/vol=False`** | paused, pos frozen | playing | `mpd:2, camilladsp:1` |
+| 15:11:31 → 15:11:41 | **stays `play/mpd/vol=False`** | paused, pos frozen | playing, through a track change | `mpd:2, camilladsp:1` |
+
+Compare §17, where the same transition produced `pause/spop/volatile=True` within 2 s and held it. Here
+the router stays on the real owner, one writer per phase throughout.
+
+### 20.3 Screen correlation — the meter now tracks the real owner
+
+Frame `shot_1789978290.799` (15:11:30.799) read against the log row for the same moment
+(`play/mpd/vol=False`, mpc playing, fifo = mpd):
+
+* meter title = the **local** track (`<ARTIST> - <TITLE>`), with the **`flac`** badge
+
+That is the correct correlation. At §17.4 the same condition produced the **Spotify** track and badge, or
+the idle screensaver. §14.3's display defect is a *consequence* of the ownership defect and went away
+with it, at least on this path.
+
+### 20.4 Also re-confirmed in the same session
+
+* **v6 holds**: `UNSET VOLATILE` at 15:11:26.919 executed straight through. Zero `FATAL ERROR` since the
+  v7 deploy, core MainPID **25770 unchanged** at ~2 h 22 m uptime, `NRestarts=0`.
+* Operator's own verdict, recorded as **observed** and matching the measurements above: *"everything
+  seems to be working exactly as intended with minimal if any clicks/pops during track change between
+  spotify and local both ways."*
+
+### 20.5 Residual clicks/pops — candidates, not conclusions
+
+Operator reports minimal but nonzero. Best remaining candidate is still §15.7: FusionDSP respawns
+camilladsp whenever the local player stops, leaving a ~100 ms window with no fifo reader, and that
+respawn now sits inside every handover. The §19 tmpfs confound is gone, so an underrun measurement taken
+now would be clean for the first time; `camilladsp.log` is still not a usable counter.
+
+**Unrelated, noted not chased:** three occurrences of
+`error: ControllerMpd::pushError: TypeError: Cannot read properties of undefined (reading 'split')` in
+the same window — non-fatal, from the MPD controller's error-reporting path, not the spop handover and
+not from these patches.
+
+**Review gate: unchanged and still open** — no independent verdict on v4, v5, v6 or v7. Nothing here was
+found by reading the code; v5's crash and v7's ownership defect each surfaced only when the bytes ran
+against a real Connect client.
