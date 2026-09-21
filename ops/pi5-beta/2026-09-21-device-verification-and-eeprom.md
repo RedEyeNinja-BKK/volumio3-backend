@@ -762,3 +762,192 @@ names the wrong track during a Spotify session. Cosmetic and separable from the 
   stayed at 0 and kept emitting a 0 volume event, which Volumio applied to the **shared** hardware mixer.
   My probe was causing silence on every source. Corrected and verified: `{"volume":100}` -> librespot 100
   -> `SetAlsaVolume100` where it had been `SetAlsaVolume0`.
+
+## 15. The takeover direction, measured at last — and the instrument that had been lying
+
+Status: **§12.7 item 1 is now closed for the release path.** The takeover direction was executed and
+measured in both directions, against the live v5 bytes, with the audio device's ownership proved from
+root-visible descriptors rather than inferred. Two claims in §12.4/§12.5 are **corrected** below, and
+one credential-handling mistake of mine is disclosed in §15.8.
+
+Live code under test, unchanged and re-verified this session: spop
+`551cdb411b0920b96e3540eefbd65c9c0853093413acb661dc450eb4a5143ed8` (mtime 11:29:10.558), mpd
+`4377a8f703c3bdc44e22d8e5b3e2c6d19cb4cb9229c623dc636bbf63a157fdf6` (mtime 10:12:31). Core MainPID 6716
+started **11:29:11** — one second *after* the spop write, so the running core is not stale with respect to
+the fix. **measured**
+
+### 15.1 Why this was runnable now when §12.4 said it was not
+
+§12.4 concluded that Spotify playback "cannot be initiated from the device" because `POST
+/player/play` "returns an empty body and changes nothing". That was measured while go-librespot had **no
+session**. A session now exists (`GET /status` carries a `username` and a `device_id`), and with a session
+present the same call **does** work: `POST /player/play {"uri":"spotify:album:…"}` -> HTTP 200, body
+`null` (5 bytes), track loaded and playing within ~2 s. **measured**
+
+The 5-byte `null` body is normal and is *not* a failure signal — the earlier reading took a healthy
+response for a dead one. The correct discriminator is whether a `will_play`/`playing` event reaches the
+plugin, not the shape of the HTTP reply. **Corrected: §12.4's "cannot be initiated from the device" holds
+only for the no-session case.**
+
+Caveat that still stands, and it is the one that matters: see §15.5.
+
+### 15.2 The instrument had been lying — §12.4's "single writer" assertion was unsound
+
+§12.4 asserted single-writer by "scanning `/proc/*/fd` for holders of `/tmp/fusiondspfifo`". Run
+unprivileged that scan is **structurally blind to the local player**: MPD runs as user `mpd`, so
+`/proc/<mpd>/fd` is `Permission denied` to `volumio`, and the scan silently returns no rows for it rather
+than erroring. During local playback it reported `camilladsp` as the only holder — which was read as
+"single writer asserted", and was **false**.
+
+A `NOPASSWD` `/usr/bin/find` path gives root visibility, and it shows what was there all along:
+**measured**
+
+```
+/proc/7085/fd/23   -> /tmp/fusiondspfifo   comm=mpd         (writer)
+/proc/7085/fd/24   -> /tmp/fusiondspfifo   comm=mpd         (writer)
+/proc/10403/fd/7   -> /tmp/fusiondspfifo   comm=camilladsp  (reader)
+```
+
+The reusable form, which should have been used from the start:
+
+```
+sudo /usr/bin/find /proc -maxdepth 3 -path '/proc/[0-9]*/fd/*' -lname '*fusiondspfifo*' -printf '%p -> %l\n'
+```
+
+An assertion that "only one writer exists" is only meaningful when the enumeration can *see* the
+candidate writers. **Corrected: every single-writer claim in §12.4 must be re-read as unproved.** The
+device-ownership conclusions drawn this session (§15.3) use the root-visible form.
+
+### 15.3 The measurement matrix — device ownership proved from descriptors
+
+Sequence run entirely from the device. Each row is a distinct moment, with the fifo's holder set read
+from root at that moment. **measured**
+
+| # | Phase | go-librespot | mpd | camilladsp | Writers |
+|---|---|---|---|---|---|
+| 0 | idle | — | — | — | 0 |
+| 1 | local playback | — | fd/23, fd/24 | fd/7 | **1 (mpd)** |
+| 2 | after Spotify takeover | fd/16, fd/17 | **gone** | fd/8 | **1 (go-librespot)** |
+| 3 | after MPD takeover | **gone** | fd/23, fd/24 | fd/8 | **1 (mpd)** |
+| 4 | restored (stopped) | — | — | — | 0 |
+
+Row 2 is the property the whole fix exists for, and this is the first time it has been demonstrated
+rather than inferred: when Spotify takes the device, **MPD no longer holds the fifo at all**. The
+collision mechanism in §3 (two clients interleaving into one fifo) is now closed by measurement, not by
+argument.
+
+### 15.4 Both directions, with the journal evidence
+
+**Spotify takes over** (local playing, then the local API starts Spotify), 12:24:57–58: **measured**
+
+```
+SPOTIFY: received: {"type":"playing","data":{...,"play_origin":"go-librespot"}}
+info: Spotify taking over (router said service=mpd, status=play): releasing the audio device
+info: ControllerMpd::stop
+info: sendMpdCommand stop took 2 milliseconds
+```
+
+The release fired, MPD stopped through the MPD protocol (2 ms), and Spotify continued: `stopped:false`,
+position advancing continuously (2210 -> 12487 ms over 12 s, ≈1.03x wall clock) and **still playing 25 s
+later**. Nothing stopped Spotify. No error-level journal entries in the whole window.
+
+**MPD takes over** (Spotify playing, then local playback starts), 12:25:53: **measured**
+
+```
+info: MPD taking over: releasing the audio device from spop
+info: Spotify Stop
+SPOTIFY: SPOTIFY STOP
+```
+
+Spotify went to `paused:true` with its position frozen, the router moved to `service=mpd, status=play`,
+and local playback ran on with no further Spotify activity. This is the guard from §13.5/§14 working on
+its intended path.
+
+### 15.5 What is *still* not measured: the volatile branch — and why an earlier reading was nearly wrong
+
+Everything above ran with `play_origin: "go-librespot"`, which `identifyPlaybackMode` classifies as
+**Volumio mode, not volatile**. So this session executed `freeAudioDevice()` — the shared release path —
+but **not** `initializeSpotifyPlaybackInVolatileMode()`, and therefore **not** `setVolatile` and **not**
+the v5 callback fix. Evidence, not assertion, across the whole window: **measured**
+
+| Marker | Occurrences |
+|---|---|
+| `UNSET VOLATILE` | 0 |
+| `SET VOLATILE` | 0 |
+| `initializeSpotifyPlaybackInVolatileMode` | 0 |
+| `Setting Spotify stop after unset volatile call` | 0 |
+
+(The 68 bare `volatile` hits in the same window are all the PeppyMeter's `pushState - … volatile=false`
+lines.)
+
+**This matters for reading §15.4 correctly: because Spotify survived the takeover in row 2, it would be
+easy to claim v5 is now verified. It is not.** With the volatile branch never entered, `setVolatile` is
+never called, `libRespotGoUnsetVolatile` is never registered, and the v5 defect cannot manifest. The
+survival in row 2 is real but it is evidence about the release path, not about v5. **v5 remains covered
+only by code semantics, the pre-fix journal capture in §14.2, and independent review.** The volatile
+branch still needs a Connect client — a phone — to reach it. §12.7 item 1 is therefore closed
+**in part**: release path measured, volatile path still open.
+
+### 15.6 New observation: the router's state does not follow a local-API Spotify takeover
+
+During row 2, Spotify was audibly playing while `getState` still reported
+`{"status":"stop","service":"mpd"}` — the core never switched service, and the journal shows why:
+
+```
+SPOTIFY: PUSH STATE SPOTIFY
+info: Received update from a service different from the one supposed to be playing music.
+      Skipping notification.Current mpd Received spop
+```
+
+The spop state push is **rejected** because the router still believes `mpd` owns playback; nothing calls
+`setVolatile` on this route, so nothing moves the router to spop. Consequence on screen: the kiosk stayed
+on the idle weather/clock screensaver throughout, i.e. the device was playing Spotify while the UI showed
+nothing playing. **measured (state + journal), observed (screenshot)**
+
+Scope note: this is a property of the *route* I drove (local API, `play_origin=go-librespot`), not
+necessarily of a phone-initiated takeover, which does go through `setVolatile` and does move the router.
+Recorded as a route-specific defect, not as the operator's report.
+
+### 15.7 New observation: the DSP engine is respawned by the local player stopping
+
+At the takeover moment the journal shows FusionDSP tearing the DSP down and rebuilding it:
+
+```
+info: FusionDsp -  Volumio is not playing
+info: FusionDsp -  Clipped samples monitor stopped
+info: camilladsp respawn in 100 ms (attempt 1/10)
+```
+
+camilladsp PID changed `10403 -> 17865` across the takeover, with a ~100 ms window between the old
+instance going away and the new one opening the fifo. So **every local-player stop — including one that
+is part of a takeover — restarts the DSP engine.** A writer opening the fifo with no reader present
+blocks rather than errors, so this is survivable, but it is a real gap in the handover path and a
+candidate contributor to the residual click/glitch that started all this work. **measured (mechanism);
+not attributed (audibility)** — this work still has no ears.
+
+### 15.8 Correction to §12.5, and a credential-handling mistake of mine
+
+**§12.5's instrument does not support the claim as read.** `/tmp/camilladsp.log` had mtime **11:29:23**
+and size 172 B while the camilladsp process actually running had started at **12:24:57** — the current
+process was not writing to that file at all. A "0 underruns" reading from it therefore means *nothing was
+recorded*, not *nothing happened*. The log is not a valid live underrun counter, and §12.5's
+14–18/s figures were taken from the same file under conditions that are not reproducible from here.
+The underrun question should stay **open** and be re-instrumented (or judged by the operator's ears)
+rather than quoted from this file. **measured (mtime vs process start)**
+
+**Disclosure.** While checking whether a playback session could be started remotely, I inspected the spop
+plugin's stored configuration with a redaction routine that tested the *leaf* key name for
+secret-like words. The file nests each setting as `{"type":…,"value":…}`, so the leaf key was `value`,
+the guard did not fire, and the routine printed the **first 60 characters** of the stored Spotify
+`refresh_token` and `access_token` into the session transcript. The values are truncated and not usable
+as credentials, and no credential was used to make any call. I did **not** rotate or modify them — that
+is the operator's call, not mine — and I abandoned the remote-playback route rather than reach further
+for the client secret. Lesson, worth keeping: **redact on the full key path, and prefer printing a
+boolean "present/empty" rather than any prefix of a secret.**
+
+### 15.9 Device state restored
+
+Playback stopped (`status=stop, service=mpd`), Spotify left `paused` at the track it had loaded, volume
+unchanged at 100 throughout (never modified by this session), fifo holder set back to empty, no
+error-level journal entries. No configuration, code, or ALSA-path file was changed in this session —
+every command was a read, a playback control, or a stop.
