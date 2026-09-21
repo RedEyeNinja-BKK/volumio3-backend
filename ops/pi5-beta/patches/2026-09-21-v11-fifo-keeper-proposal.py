@@ -28,6 +28,9 @@ import sys, hashlib, difflib, subprocess, tempfile, os
 # plugin and should be reviewed before it runs. Nothing here is applied by the review round.
 
 apply = '--apply' in sys.argv
+emit = None
+if '--emit' in sys.argv:
+    emit = sys.argv[sys.argv.index('--emit') + 1]
 BK = '/home/volumio/pi5-fix-backup-20260921-021521/'
 P = '/data/plugins/audio_interface/fusiondsp/camilladsp-js.js'
 src = open(P).read()
@@ -184,6 +187,9 @@ print('  ' + syntax)
 for l in difflib.unified_diff(src.splitlines(), out.splitlines(), 'v10', 'v11', lineterm='', n=1):
     print('    ' + l)
 print('  staged sha256: ' + hashlib.sha256(out.encode()).hexdigest())
+if emit:
+    open(emit, 'w').write(out)
+    print('  EMITTED staged bytes to ' + emit)
 if apply:
     open(BK + 'camilladsp-js.v10.js', 'w').write(src)
     open(P, 'w').write(out)

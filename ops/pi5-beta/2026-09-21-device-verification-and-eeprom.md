@@ -1803,3 +1803,118 @@ gating-eligible, with `post_review_edits: []`.
 
 Four rounds, four genuine findings in my own work, none of them found by reading the code alone. The gate
 earned its place in this session.
+
+## 32. `/boot/userconfig.txt` — assessed, verified under load, and streamlined
+
+Reviewed on request, critically, with every setting tested rather than assumed. Original sha256
+`2cf28b6cb7f0e43a60853642271b1807383bdbb8a78e5293683911a3570ec473`, 41 lines.
+
+### 32.1 What is real — verified by measurement, not by reading
+
+| Setting | Verdict | Evidence |
+|---|---|---|
+| `arm_freq=2800` | **works** | under a 4-core load: `arm=2800 MHz` exactly; `scaling_max_freq` 2800000 |
+| `core_freq=1100`, `v3d_freq=1100` | **works** | under the same load: both read exactly 1100 MHz |
+| `over_voltage=6` | adequate | 1.0000 V loaded / 0.7500 V idle; DVFS active; no capping |
+| thermal headroom | **good** | **`get_throttled = 0x0`, including all four "ever" bits** — no under-voltage, no frequency capping, no thermal throttle, ever. 73.6 °C sustained under load, fan pwm 175/255 |
+| `dtoverlay=vc4-kms-dsi-waveshare-panel,8_8_inch,rotation=90` | **works** | DRM reports `card0-DSI-2: 480x1920`; Goodix touch controller present on I2C |
+| `dtparam=i2c=on` | needed | the touch controller is `Goodix Capacitive TouchScreen` — that is what it is for |
+| `dtparam=spi=off` | safe | touch is I2C, verified present |
+| `dtparam=uart=off` | safe | Bluetooth is on its own UART — `hci0 Bus: UART` is up with the service active |
+| `dtparam=audio=off` | correct | overrides Volumio's `dtparam=audio=on`; the DAC is I2S via `dtoverlay=hifiberry-dac` in `config.txt` |
+
+**The overclock is real, and this device has headroom:** 2.8 GHz sustained with a clean throttle word is
+the sensible ceiling here; going higher would trade a working audio path for heat.
+
+### 32.2 A deliberate override that looks like dead config
+
+`hdmi_force_hotplug=0` here **overrides Volumio's `hdmi_force_hotplug=1`** in `volumioconfig.txt`:
+`config.txt` includes `volumioconfig.txt` first and `userconfig.txt` second, so userconfig wins. It is
+**kept and now documented**, because it is a functional override (the panel is DSI, no HDMI sink), not
+stale config. Without that note it is exactly the kind of line a later tidy-up would delete.
+
+### 32.3 Five directives that did nothing — removed
+
+Each verified inert before removal:
+
+* **`dtoverlay=rpi-active-fan,temperature=60000,speed=180,temperature=70000,speed=255`** — **the overlay
+  does not exist.** `/boot/overlays/rpi-active-fan.dtbo` is absent (365 overlays present; the fan overlays
+  available are `gpio-fan`, `i2c-fan`, `pwm-gpio-fan`). The fan is actually driven by the **kernel's
+  default thermal trips** — measured `cpu-thermal` trip points 50/60/67.5/75 °C, and pwm 125 idle → 175
+  loaded. So the file advertised a custom curve that was never in effect, while the real protection came
+  from the kernel. That is the most misleading line in the file and the reason it is gone.
+* **`sdram_freq=2400`** — SDRAM clock is not user-settable on Pi 5; `vcgencmd measure_clock sdram` → 0.
+* **`gpu_freq=1100`** — not a Pi 5 knob; `v3d_freq`/`core_freq` are the equivalents, and both were
+  measured working on their own.
+* **`disable_overscan=1`** — pre-Pi 4 legacy; no overscan concept on Pi 5 under KMS.
+* **`framebuffer_width=480` / `framebuffer_height=1920`** — legacy firmware framebuffer; under
+  `vc4-kms` the mode comes from the panel (DRM reports 480x1920 without them).
+
+### 32.4 Tested negative: the CPU governor is not a bottleneck
+
+`conservative` looked like an obvious win to change for a realtime DSP path. **Measured instead of
+assumed:** under real playback with the DSP chain active, the clock reaches **2800 MHz within 8 s and
+holds**, and `time_in_state` over a 16 s window showed ~1573 ticks at 2.8 GHz against **~60 ticks total
+across all intermediate steps** — the ramp is effectively instantaneous for this workload. A governor
+change would have been a system change for no benefit, so **no change was made**. (I could not have made
+it anyway without root; `/sys/.../scaling_governor` is not writable as `volumio`, and I will not route a
+system-profile change through a NOPASSWD tool without a decision to make it.)
+
+### 32.5 The edit and its boot-safety argument
+
+New file sha256 `96a2b2e4cc4834983babf3dcb003c1bfa620186b24aa6f7d5f053f2978b84bf1`: **18 directives → 12, and
+the new set is a strict subset of the old.**
+
+That is the boot-safety argument, and it is checkable rather than asserted: **nothing was added**, so
+every remaining directive was already being parsed by the firmware on a boot that demonstrably works. A
+subset of already-parsed directives cannot introduce a parse failure. Backups: `/boot/userconfig.txt.orig-20260921`
+(byte-identical to the original, both verified against `2cf28b6c…`), plus `/data/pi5-snapshots/2026-09-21-bootconfig/`.
+
+> [!IMPORTANT]
+> **The one thing I could not verify: the clean start.** The tooling's shell guard blocks `reboot` — by
+> design, and I will not rephrase my way around a safety boundary. The content is proven boot-safe
+> structurally and every *setting* was verified live under load, but the file itself has not yet been
+> through a boot. **That needs a power cycle by the operator**, and it is the only outstanding item on
+> the boot config. The previous file is preserved on the same partition for a one-line restore.
+
+## 33. PeppyMeter's wrong track — closed by CORRECTION, not by a patch
+
+§14.3 proposed that "every Spotify-aware branch gated on `Spotify_ON` is dead code here, which is the
+obvious first place to look for a display that names the wrong track". **That hypothesis is wrong, and
+the measurement to check it is trivial.** `Spotify_ON` has exactly **two** occurrences in the plugin:
+
+```
+308:  var Spotify_ON = fs.existsSync(spotify_config) && getPluginStatus('music_service','spop')==='STARTED'
+                        && self.config.get('useSpotify') && state.service === 'spop';
+343:  if (DSP_ON || Spotify_ON || Airplay_ON || Other_ON) {
+```
+
+It gates **nothing** about the rendered metadata. Its only use is one term in an OR that `DSP_ON` already
+satisfies (`useDSP=true`). So `Spotify_ON` being permanently false is harmless — it is a redundant term,
+not a dead display path.
+
+The meter is a **faithful renderer of whatever the router reports**. The wrong track was the router
+state-ownership defect of §17, and §20 measured the fix directly: with the router correctly on
+`play/mpd`, the 15:11:30 frame showed the **local track with the `flac` badge**. There is no separate
+display bug to patch, and patching the plugin's `useSpotify` would have been actively harmful —
+`useSpotify=false` is deliberate and load-bearing, generating the `spotify1_off`/`spotify2_off` routes
+that make Spotify take the same DSP path as every other source (§3).
+
+## 34. v11 review — a reviewability rejection, fixed
+
+Round 1 came back **REJECT — "reviewability rejection, not a claim that the proposed code is
+definitively defective"**: I froze the patch script and the request but **not the staged JavaScript**, so
+the reviewer had no exact artifact and could not trace the lifecycle or check the digest. My error.
+
+On the hazard I asked about, it confirmed the mechanism and corrected my *conclusion*: the keeper does not
+unblock another writer's open (it is a writer, not a reader), but that does not make the later open safe —
+the hang condition is camilladsp's absence, which exists with or without a keeper. The precise statement
+is that the keeper neither adds nor removes that hazard, and what it does change is that camilladsp no
+longer exits on its own. I have restated it that way in the request rather than leaving my looser framing
+standing.
+
+Fixed by adding `--emit` to the patcher and freezing the exact staged bytes
+(`camilladsp-js.staged-v11.js`, sha256
+`abb3d51e4bf2d344d5f9bd165602f1d9bfd8d098e0019b9385a191a3c530572d`, verified to match the digest the
+patcher reports on the device). Round 2 submitted with an explicit leak-analysis ask:
+`run_a4a8026568b0426cbf0f306adb1b228a`.
