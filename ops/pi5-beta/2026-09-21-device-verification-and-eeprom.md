@@ -1763,3 +1763,43 @@ holding. `run_b9552fd0aa8a4863ae18a2545d6e6a32`.
   `getPluginInfo` throws once per core start inside its bundled `SystemUtils`, and the MPD play path threw
   `...reading 'split'` three times in a single instant during one takeover on 2026-09-21 — 0 occurrences
   since, not reproducible in subsequent tests, in code that precedes the patched region.
+
+## 31. Review round 4 — APPROVE-WITH-FINDINGS, and the pushback was accepted
+
+Run `run_b9552fd0aa8a4863ae18a2545d6e6a32`; receipt
+`operations/review-receipts/pi5-handover-2026-09-21-r4-v12.json`, **CLEAN-READONLY, authoritative,
+gating-eligible, no post-review edits**.
+
+**Verdict: APPROVE-WITH-FINDINGS.** All four v12 fixes were confirmed substantively correct (F3 process
+matching less brittle, F4 bounded and fail-closed, F5 clearer with a longer deadline, F6 exact), and the
+camilladsp clean-exit logic was confirmed internally coherent.
+
+**On the pushback, it answered the question I actually asked.** Asked to name a concrete mechanism rather
+than restate the finding, it said plainly:
+
+> *"Under the stated constraints, there is no concrete mechanism in this plugin layer that closes F1/F2 …
+> A stronger `/proc` scan is not such a mechanism. The pushback is therefore accepted as a layer-boundary
+> argument: F1/F2 are not closable here without changing the architecture or requiring cooperation from
+> both writers. They should nevertheless remain recorded as residual BLOCKING findings against any
+> absolute mutual-exclusion claim."*
+
+It then enumerated the five things that **would** close it — a cooperative `flock` honoured by both
+writers, a single broker owning the fifo, privileged atomic admission, stop-plus-independently-verified
+termination, or a kernel-level redesign. That is exactly the distinction I needed: **not closable at this
+layer**, rather than not closed. F1/F2 are recorded as an accepted layer-boundary residual, and the code
+says the same thing in its own comment.
+
+**All four review rounds closed consistently:** every receipt is CLEAN-READONLY, authoritative,
+gating-eligible, with `post_review_edits: []`.
+
+### 31.1 Where the review series landed
+
+| Round | Subject | Verdict | Outcome |
+|---|---|---|---|
+| 1 | v4–v8 | APPROVE-WITH-FINDINGS (1 blocking) | v9: confirming fail-closed release |
+| 2 | v9 | APPROVE-WITH-FINDINGS (1 blocking) | v10: confirm the resource, not the state |
+| 3 | v10 | REJECT (2 blocking) | v12: bounded, exact, honestly framed |
+| 4 | v12 | APPROVE-WITH-FINDINGS | pushback accepted; F1/F2 recorded as layer-boundary residuals |
+
+Four rounds, four genuine findings in my own work, none of them found by reading the code alone. The gate
+earned its place in this session.
