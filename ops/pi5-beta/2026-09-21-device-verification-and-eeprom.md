@@ -417,12 +417,173 @@ implied.** An independent review of the two patchers was requested three times a
 failed to produce a verdict: attempt one returned a delegation stub with no findings, attempt two was
 lost by the review service (its run id answered HTTP 404 `run not found` and was not re-polled), and
 attempt three (run `run_36e29975154c4aba99e5642adf67a13a`) was still running when this entry was
-committed. Both patches were therefore applied on the strength of the live measurements in §8 alone.
-The findings of attempt three, when they exist, belong in §12 — if §12 is absent from this record, the
-review never returned and the §8 measurements remain the only supporting evidence. Two production
-files on a working device carry code that no second party has yet read.
+committed; it has since returned a verdict. Both patches were therefore applied on the strength of the
+live measurements in §8 alone. That verdict, my dispositions of it, and the v3 revision it forced are in
+**§12** — read §12 before treating §8's matrix as the whole story of this device's state.
 
 The defect class is a genuine Volumio behaviour (no
 service is released when a different service starts, and for `syncState` a service `stop` is
 indistinguishable from end-of-track), so the durable fix belongs upstream rather than only on this
 device.
+
+## 12. Independent review came back REJECT — v3 applied, one path now unverifiable
+
+### 12.1 The verdict
+
+An independent review of the two patcher scripts (submitted with the patcher source verbatim, their
+sha256 digests, and this record's digest) returned **REJECT** with four findings marked blocking and
+eight marked non-blocking. Run `run_36e29975154c4aba99e5642adf67a13a`, through the sanctioned Hermes
+gateway lane. Its summary sentence: the patches "demonstrably improve the reproduced takeover race" but
+"the implementation is not safe enough to approve".
+
+Two earlier review attempts had produced no verdict at all (a delegation stub with no findings, then a
+lost run answering HTTP 404 `run not found`, which was not re-polled). This third attempt returned a
+real verdict, so §11's earlier statement that no second party had read the code is superseded: a second
+party has now read it, and rejected the first version.
+
+### 12.2 Dispositions — what was accepted, modified, and refuted
+
+I did not adopt the verdict wholesale. Findings were checked against the live source before acting.
+
+**Accepted and fixed in v3:**
+
+- **F4 (blocking) — the disarm ran before the stopper was validated.** Correct, and the worst of the
+  four: `freeAudioDevice()` set `currentStatus='stop'` and only then looked up the mpd plugin, so a
+  failed lookup left the state machine claiming "stopped" while MPD might still hold the FIFO. v3
+  resolves and validates the plugin *first* and returns untouched if it is unavailable.
+- **F3 (blocking) — the mpd-side predicate could miss an active Spotify and fall through into the
+  collision.** Correct, and the most important behavioural fix. The old predicate
+  (`stateMachine.isVolatile === true || spop.state.status === 'play'`) had no defined behaviour for a
+  missing or stale spop state. v3 inverts the default: the release is skipped **only** when spop
+  explicitly reports `status === 'stop'` and is not volatile; anything unprovable is treated as "may
+  still be playing". "Cannot prove Spotify is idle" no longer means "start anyway".
+- **F11 / F4 (guard failure semantics).** If `mpdPlugin.stop()` throws, v3 no longer leaves a
+  state machine that lies: it restores the pre-takeover status and logs at error level. The queue-walk
+  window that reopens is the smaller of the two failures and is stated in the comment.
+
+**Modified (accepted in part) — F1 (blocking): "patch 1 omits bookkeeping that `CoreStateMachine.stop()`
+performs".** The finding's *list* is an accurate reading of `stop()`'s non-volatile branch, but that
+branch is not reachable here, so the prescription does not apply. The live source opens:
+
+```js
+CoreStateMachine.prototype.stop = function (promisedResponse) {
+  if (this.isVolatile) {
+    return this.serviceStop();          // <- the branch that runs during a Spotify takeover
+  } else {
+    self.setConsumeUpdateService(undefined);
+    self.unSetVolatile();
+    if (this.currentStatus === 'play') { ...updateTrackBlock(); this.pushState()... }
+```
+
+During a takeover `isVolatile` **is** true (the plugin has just called `setVolatile`), so the core would
+take the first branch — `serviceStop()`, which stops **Spotify**, the volatile service — and would touch
+none of MPD's state. On this path `stop()` performs *no* bookkeeping for the local service, so the
+disarm is not a partial copy of it; it is the only thing that runs. Adopting the review's prescription
+would also call `unSetVolatile()`, clearing the flag that gives Spotify ownership of the device — a
+change that breaks the takeover this work exists to fix. The residue of F1 is a real but non-blocking
+polish item: after a takeover the UI state for the stopped local service is not re-published by this
+path, because the core does not publish it on the volatile branch either.
+
+**Refuted — F2 (blocking): "`freeAudioDevice()` is not re-entrant; two `will_play` events can
+interleave."** The body is synchronous from the state read to the stop call and Node's event loop is
+single-threaded, so a second `will_play` cannot enter it mid-body; the pre-fix defect that looked like
+interleaving (a restart) was `syncState`'s end-of-track inference, not a concurrency fault. The
+objection is nevertheless cheap to close, so v3 adds an explicit `_freeingAudioDevice` latch, which also
+keeps the property if the body ever gains asynchronous work. Refuted on mechanism, hardened on cost.
+
+**F6 (non-blocking) — accepted as a behavioural concern, mitigated.** Stopping a *paused* local player
+discarded its resume point because `currentSeek` was zeroed unconditionally. v3 zeroes `currentSeek`
+only when the previous status was `play`, so a paused track keeps its position. The underlying question
+the review raised — whether a paused MPD actually holds the FIFO open — could not be measured on this
+device: MPD runs as user `mpd` and `sudo` requires a password, so its file descriptors are not
+inspectable from the `volumio` uid. The 'pause' case stays in the guard because it is the conservative
+choice while that is unknown.
+
+**Not actioned, recorded:** F5/F7-F10/F12 are scope, labelling, and lifecycle-observations that v3
+either improves indirectly or that remain open; F12's labelling concerns are acted on in §12.4 below.
+
+### 12.3 v3 — what is now on the device
+
+Two files changed, both from their v2 state, both syntax-checked (`node --check`) and dry-run staged
+before applying. v3 patcher: `ops/pi5-beta/patches/2026-09-21-handover-v3-review-response.py`.
+
+| | File | sha256 (live) | Rollback |
+|---|---|---|---|
+| A | `/data/plugins/music_service/spop/index.js` | `cd256f141c2a…` | `spop-index.v2.js` (the rejected v2), `spop-index.v1.js`, `spop-index.js` (original) |
+| B | `/volumio/app/plugins/music_service/mpd/index.js` | `4377a8f703c3…` | `mpd-index.v2.js`, `mpd-index.js.orig` |
+
+All five rollback copies are in `/home/volumio/pi5-fix-backup-20260921-021521/`. The core was reloaded
+once (MainPID 13654 → 28330, `Restart=always`); nothing else on the device was modified.
+
+### 12.4 Re-verification — what passed, and the one path that cannot be verified from here
+
+Passing, measured after v3 (single writer asserted by scanning `/proc/*/fd` for holders of
+`/tmp/fusiondspfifo`):
+
+- **Local playback only** — `status=play`, camilladsp the only FIFO holder, hardware at 384000.
+- **MPD→MPD queue advance** — advances and plays, no takeover action taken, nothing logged.
+- **Recovery after a stop** — local playback restarts cleanly.
+- **Local start with Spotify idle** — plays normally; the guard's release is *skipped* and no
+  `MPD taking over` line appears, which is the default-to-release change behaving as designed.
+- **No error-level journal entries** for the whole test window.
+
+**Not verified: the Spotify-takeover direction — the half the whole fix is for.** Spotify playback
+cannot be initiated from the device. `POST /player/play` on go-librespot's local API returns an empty
+body and changes nothing (`stopped:true`, `track:{}`, no `will_play` event ever reaches the plugin),
+because a Connect session has to be established by a client (the phone app). Consequently the
+`freeAudioDevice` path and the guard's release path were **not executed** in this session. §8's matrix
+rows B and C, and the v1 baseline, remain *measured* — they were taken while a session existed — but they
+are measurements of the **pre-v3** code. Nothing in this session demonstrates that v3 behaves correctly
+during a takeover. That is the honest state of the evidence, and it is the single most important open
+item in this record.
+
+Supporting constraint, newly measured: **librespot's volume resets to 0 whenever the plugin or core
+restarts** (observed 100 → 0 across the reload), and `POST /player/volume` while no session exists
+returns an empty body without effect. So after any core reload Spotify will be silent until a session is
+started, and the silence is librespot's own mixer at zero — not the fix, and not the audio path.
+
+### 12.5 New observation, attribution OPEN: continuous playback-side buffer underruns
+
+While measuring the matrix, the DSP's log showed a continuous stream of
+`PB: Prepare playback after buffer underrun` — **~14–18 per second, throughout playback**:
+
+| Condition | Output rate | Underruns / 40 s | Load (4 cores) |
+|---|---|---|---|
+| DSD256 source, PeppyMeter running | 384000 | 718, 719, 720 (three windows) | 4.7 – 5.6 |
+| 96 kHz FLAC source | 96000 | 556 | 4.7 |
+
+This is *not* format-specific and it is *not* the takeover race: it appears with a single writer and no
+Spotify involvement. It is the best remaining candidate for the "glitching" that started this work, and
+the earlier record's decision to exclude CPU starvation as an explanation was premature — the machine is
+oversubscribed during playback (camilladsp ~50–130 %, the PeppyMeter screensaver ~80–92 %, chromium and
+Xorg alongside, load above the 4 cores available).
+
+Attribution is **open**, for two reasons stated plainly. First, the control failed: killing the meter is
+not sufficient, because the plugin's `run_peppymeter.sh` respawns it within ~5 s, and both A and B arms
+therefore measured the same condition (that is also the one useful thing the failed control showed —
+the rate is extremely stable at ~18/s). Disabling the meter properly means changing the operator's
+screensaver settings, which is not a change to make as a measurement side effect. Second, there is no
+history to compare against: `camilladsp.log` is truncated on every start, and camilladsp is launched
+with `-o /tmp/camilladsp.log`, so its output never reaches the journal. Nothing in this session's
+changes can affect the DSP's ALSA layer — the edits were JavaScript guards in the two plugin files, and
+no audio-path configuration was touched — but whether these underruns predate this work is **not
+established**. Whether they are *audible* is also not established: this work has no ears, the operator
+does, and that is the cheapest discriminator available.
+
+### 12.6 Probe caveat discovered while verifying
+
+`GetCaptureRate` over the CamillaDSP control websocket is **not** a trustworthy rate reading: it
+returned 36839 while the configured capture rate, the stream-parameters log and the hardware all said
+384000. An earlier reading of the same verb returned 385165 in the same configuration. Use
+`/proc/asound/card*/pcm0p/sub0/hw_params` and `/tmp/fusiondsp_stream_params.log` for rate truth; treat
+`GetCaptureRate` as indicative only. Also confirmed correct on this device: a 96 kHz FLAC plays at 96000
+and the DSD256 file at 384000, i.e. no unexpected resampling is being introduced by the bridge.
+
+### 12.7 Open items, in priority order
+
+1. **Takeover behaviour on v3 is unverified** (§12.4) and needs a Spotify session started from a phone.
+2. **The underrun storm** (§12.5) — needs the operator's ears, then a meter-off control with config
+   access.
+3. **Review of v3** has not been requested yet; it is the next gate before this record can describe
+   the fix as reviewed.
+4. Whether a paused MPD holds the FIFO (§12.2, F6) — needs root to inspect user `mpd`'s descriptors.
