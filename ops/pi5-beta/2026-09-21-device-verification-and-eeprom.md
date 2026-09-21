@@ -587,3 +587,89 @@ and the DSD256 file at 384000, i.e. no unexpected resampling is being introduced
 3. **Review of v3** has not been requested yet; it is the next gate before this record can describe
    the fix as reviewed.
 4. Whether a paused MPD holds the FIFO (§12.2, F6) — needs root to inspect user `mpd`'s descriptors.
+
+## 13. The takeover failure reproduced by the operator - root cause inside my own guards
+
+The operator drove the exact sequence and it failed: local playback audible, stop, start a Spotify
+song (no sound), then start local again to let Spotify cut over - **stuttering and glitching, no sound
+from Spotify, local still playing, the PeppyMeter showing the Spotify track, and the UI controlling the
+Spotify song instead of the file that was audibly playing.** That last sentence is the important one: the
+system believed Spotify owned the device while the local player was still streaming into it.
+
+### 13.1 Why the v3 guard did nothing: it trusted a field that is not truthful
+
+Measured in the journal during the failure:
+
+```
+info: peppy_screensaver: pushState - status=play service=spop volatile=true
+```
+
+and in the plugin source, `identifyPlaybackMode()` -> `initializeSpotifyPlaybackInVolatileMode()` ->
+`setVolatile({service:'spop', ...})`. So the router state can already read `service=spop` **while MPD is
+still streaming**. The v3 guard opened with
+
+```js
+var current = self.commandRouter.volumioGetState();
+if (!current || current.service === 'spop') { return; }   // <- returned in exactly the failing case
+```
+
+It bailed out precisely when it was needed. The service/status fields describe what the *state machine
+believes*, and during a volatile takeover they are wrong; MPD's actual streaming state is the truth and
+the guard was not looking at it.
+
+### 13.2 v4 - release unconditionally, log what the router claimed
+
+`freeAudioDevice()` now resolves and validates the mpd plugin first, then **releases unconditionally**
+(no service and no status test), because stopping an already-idle MPD is a no-op while a missed release
+costs audible break-up and a dead UI. It is also called from **both** `will_play` and `playing`, so it
+cannot be missed if one event is absent or out of order. It logs the router's claim at the moment of
+takeover - `Spotify taking over (router said service=..., status=...): releasing the audio device` -
+which turns the next reproduction into evidence either way.
+
+Live: `/data/plugins/music_service/spop/index.js` sha256 `67d05675…` (147154 -> 147991 B), syntax
+checked, dry-run staged, core reloaded (MainPID 1374 -> 4473). Rollback adds `spop-index.v3.js`. The mpd
+guard is unchanged (`4377a8f7…`). The router-trusting bail-out is verifiably gone (`grep -c` = 0) and
+there are exactly two call sites.
+
+### 13.3 "No sound from Spotify" has a second, independent cause - the volume event chain
+
+```
+SPOTIFY: received: {"type":"volume","data":{"max":100,"value":0}}
+info: Setting Volumio Volume from Spotify: 0
+info: VolumeController::SetAlsaVolume0          <- the SHARED hardware volume, every source
+```
+
+go-librespot reports its own mixer, and when that mixer is 0 the plugin loyally applies it to Volumio's
+volume controller, which drives the **shared hardware mixer** to 0 - silencing local *and* Spotify. So a
+silent Spotify can be a volume problem, not a routing problem.
+
+**My contribution to this one:** the plugin sets that mixer with
+
+```js
+self.sendSpotifyLocalApiCommandWithPayload('/player/volume', { volume: volume });   // line 682
+```
+
+and I had been POSTing `{"value":100}` - the wrong key, silently ignored, so librespot stayed at 0 and
+kept emitting `value:0` events. Corrected and verified both directions: `{"volume":100}` -> librespot
+reads 100 -> the event chain now logs `RECEIVED SPOTIFY VOLUME 100` / `Setting Volumio Volume from
+Spotify: 100` / `VolumeController::SetAlsaVolume100`, where it had been `SetAlsaVolume0`. **My probe was
+causing the silence I was investigating.**
+
+### 13.4 Damage I caused during diagnosis, and undid
+
+Killing the PeppyMeter's parent wrapper to test the meter's effect orphaned its child:
+`2524 ppid=1 99.6% CPU 06:35 python3 ./screensaver/volumio_peppymeter.py` - a process stuck at a full
+core with its plumbing severed, which is why the spectrum stopped moving. Killed; the plugin respawns a
+properly parented meter. Do not kill wrapper chains on this device to test the meter: the child survives
+the parent.
+
+Two measurement corrections, both mine: `wchar` from `/proc/<pid>/io` proves **nothing** about ALSA
+throughput here, because the devices are opened `MMAP_INTERLEAVED` and playback never calls `write()`;
+and a `pgrep -f` that matched my own shell made me report three meter instances when there was one.
+
+### 13.5 State after this section
+
+Local playback verified working after the reload (MPD progressing, camilladsp the only FIFO writer,
+`service=mpd volatile=false`); the device was left stopped. The takeover path still cannot be exercised
+from the device, so v4's fix is **unverified against a real takeover** - the operator's phone is the only
+way to start a Connect session. The new log line is what makes the next attempt conclusive.
