@@ -673,3 +673,92 @@ Local playback verified working after the reload (MPD progressing, camilladsp th
 `service=mpd volatile=false`); the device was left stopped. The takeover path still cannot be exercised
 from the device, so v4's fix is **unverified against a real takeover** - the operator's phone is the only
 way to start a Connect session. The new log line is what makes the next attempt conclusive.
+
+## 14. The takeover now works in both directions - three defects, two of them upstream
+
+Operator confirmation after v5: **"audio back and forth between local and spotify seems to work"**. The
+path there ran through three separate defects, and only one of them was the thing this record set out to
+fix.
+
+### 14.1 v4 - the router's claim is not the property to test
+
+The v3 guard bailed out when the router reported `service === 'spop'`. The capture during the next attempt
+showed the release firing correctly with the router truthfully saying `service=mpd, status=play`, and MPD
+stopping through the MPD protocol with no router involvement:
+
+```
+will_play -> Spotify taking over (router said service=mpd, status=play): releasing the audio device
+          -> CoreStateMachine::stPlaybackTimer -> ControllerMpd::stop -> sendMpdCommand stop took 3 ms
+```
+
+Note `ControllerMpd.prototype.stop` is only `return this.sendMpdCommand('stop', [])` - there is **no**
+router path in it, so the release cannot re-enter the volatile-aware stop by that route. (That was worth
+checking: had it called `commandRouter.volumioStop()`, it would have stopped Spotify instead of MPD.)
+
+### 14.2 v5 - the upstream bug that stops Spotify during its own takeover (one pair of parentheses)
+
+In `initializeSpotifyPlaybackInVolatileMode`:
+
+```js
+self.context.coreCommand.stateMachine.setVolatile({
+    service: 'spop',
+    callback: self.libRespotGoUnsetVolatile()      // <-- called, not referenced
+});
+```
+
+The parentheses invoke the function on the spot and register its returned promise as the callback. The
+core's own comment on that field reads "This function will be called on volatile stop", so the intent is
+unambiguous. Consequences:
+
+1. The body runs at `setVolatile` time, when `currentVolumioState` is still the local track that is
+   playing - its guard `status !== 'stop'` is satisfied, so it logs `Setting Spotify stop after unset
+   volatile call` and schedules `self.stop()`.
+2. The registered callback is a promise, not a function, so the core's `volatileCallback.call()` cannot
+   work when volatile really is unset.
+
+Measured in the journal, ~11 s after the takeover, when `ignoreStopEvent` had already cleared (it is set
+for 2 s around the volatile init) - so the pause actually executes:
+
+```
+CoreStateMachine::setConsumeUpdateService undefined
+SPOTIFY: UNSET VOLATILE
+info: Setting Spotify stop after unset volatile call
+info: Spotify Stop  /  SPOTIFY: SPOTIFY STOP          <- and librespot is paused
+```
+
+`ControllerSpotify.prototype.stop()` logs `Spotify Stop` unconditionally but only sends
+`/player/pause` when `!ignoreStopEvent`, so the log alone does not prove a pause - which is exactly why
+the ordering matters here and why the fix was applied on the code defect rather than on the log.
+
+Fixed by passing the reference: `callback: self.libRespotGoUnsetVolatile`. Live spop sha256 `551cdb41…`
+(v4 was `67d05675…`), rollback `spop-index.v4.js`, syntax checked, core reloaded, local playback
+re-verified (`mpc` progressing, `service=mpd`, one FIFO writer).
+
+### 14.3 What is still not right
+
+The PeppyMeter displays the wrong track. Not investigated to a conclusion here, but the first structural
+fact is recorded: `index.js:308` builds
+
+```js
+var Spotify_ON = fs.existsSync(spotify_config) && getPluginStatus('music_service','spop')==='STARTED'
+                 && self.config.get('useSpotify') && state.service === 'spop';
+```
+
+and `useSpotify` is forced false whenever the DSP bridge is on, so `Spotify_ON` is **permanently false on
+this device**. The meter still starts (line 343 passes via `DSP_ON`), but every Spotify-aware branch that
+is gated on `Spotify_ON` is dead code here, which is the obvious first place to look for a display that
+names the wrong track during a Spotify session. Cosmetic and separable from the audio defect.
+
+### 14.4 Corrections to my own work in this session
+
+- `mpdPlugin.stop()` does **not** route through the router (checked rather than assumed).
+- `wchar` from `/proc/<pid>/io` proves nothing about ALSA throughput here: the devices are opened
+  `MMAP_INTERLEAVED` and playback never calls `write()`.
+- A `pgrep -f` that matched my own shell produced a false "three meter instances" report.
+- Killing the PeppyMeter's parent wrapper orphaned its child at ~100 % of a core with its plumbing cut,
+  which froze the spectrum. The plugin respawns a parented meter. Do not kill wrapper chains to test the
+  meter on this device.
+- My `POST /player/volume {"value":100}` was ignored (the plugin uses the key `volume`), so librespot
+  stayed at 0 and kept emitting a 0 volume event, which Volumio applied to the **shared** hardware mixer.
+  My probe was causing silence on every source. Corrected and verified: `{"volume":100}` -> librespot 100
+  -> `SetAlsaVolume100` where it had been `SetAlsaVolume0`.
