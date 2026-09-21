@@ -2702,6 +2702,87 @@ ControllerMpd.prototype.explodeISOFile = function (uri) {
 ControllerMpd.prototype.clearAddPlayTrack = function (track) {
   var self = this;
 
+  // Spotify (spop) is a volatile service that shares FusionDSP's single fifo input with us.
+  // If it still holds the device when local playback starts, both services write into that
+  // one fifo and the DSP samplerate follows whichever of them opened it last, so a local
+  // DSD stream (384 kHz) lands in a fifo the DSP has switched to Spotify's 44.1 kHz and is
+  // inaudible. Ask Spotify to release the device first; its stop() pauses go-librespot,
+  // which closes its fifo handle. The state machine cannot do this for us here: its stop()
+  // only releases the volatile service, and spop does not always have that flag set.
+  //
+  // DEFAULT TO RELEASING. The release is skipped only when spop explicitly reports 'stop'
+  // and is not volatile. A missing or stale spop state counts as "may still be playing":
+  // falling through into local playback while Spotify holds the fifo is the exact collision
+  // this guard exists to prevent, so "cannot prove Spotify is idle" must not mean "start
+  // anyway". Calling stop() on an idle spop sends one pause to go-librespot and is otherwise
+  // inert - measured, see the record.
+  // v9 (2026-09-21): FAIL CLOSED. Independent review found that this guard logged a failed
+  // release and then started local playback anyway - the exact collision it exists to prevent.
+  // Two independent holes: cs.stop() swallows its own failures and resolves immediately
+  // without confirming the pause, and it sends NO pause at all while spop's ignoreStopEvent is
+  // set (a ~2 s window around a volatile init - precisely when another service may be taking
+  // the device). spop's handoffAudioDevice() forces the pause and resolves true only once
+  // go-librespot reports it is not playing; local playback starts only if that is confirmed.
+  var cs = null;
+  var releaseNeeded = false;
+  try {
+    cs = self.commandRouter.pluginManager.getPlugin('music_service', 'spop');
+    if (cs && typeof cs.stop === 'function') {
+      var csm = self.commandRouter.stateMachine;
+      var spopStopped = !!(cs.state && cs.state.status === 'stop');
+      // v10 (2026-09-21): the "definitely idle" shortcut no longer trusts plugin state alone.
+      // Independent review (round 2) pointed out it could start local playback on stale spop
+      // state while go-librespot still held the fifo. The shortcut now also requires the
+      // ground truth: go-librespot must NOT hold the fifo. Without the predicate we do not
+      // take the shortcut at all - we go through the confirming handoff.
+      var fifoFree = (typeof cs.fifoHeldByGoLibrespot === 'function')
+        ? !cs.fifoHeldByGoLibrespot()
+        : false;
+      var definitelyIdle = spopStopped && !(csm && csm.isVolatile === true) && fifoFree;
+      releaseNeeded = !definitelyIdle;
+    }
+  } catch (e) {
+    self.logger.error('MPD taking over: could not inspect the spop plugin: ' + e);
+  }
+
+  if (!releaseNeeded) {
+    return self._mpdStartLocalPlayback(track);
+  }
+
+  self.logger.info('MPD taking over: releasing the audio device from spop');
+  var handoff;
+  if (typeof cs.handoffAudioDevice === 'function') {
+    // Round-2 finding 6: a synchronous throw here must become a refusal, not a rejected
+    // promise on a path that never reaches the toast.
+    try {
+      handoff = cs.handoffAudioDevice();
+    } catch (e) {
+      self.logger.error('MPD taking over: handoffAudioDevice threw: ' + e);
+      handoff = libQ.resolve(false);
+    }
+  } else {
+    // spop predates the confirming handoff. Best effort only, and say so plainly rather than
+    // pretend the release was confirmed.
+    self.logger.error('MPD taking over: spop has no handoffAudioDevice(); the release cannot be confirmed');
+    try { cs.stop(); } catch (e) { self.logger.error('Could not release the audio device from spop: ' + e); }
+    handoff = libQ.resolve(false);
+  }
+
+  return handoff.then(function (released) {
+    if (released !== true) {
+      self.logger.error('MPD taking over: Spotify did not confirm the release; NOT starting local playback');
+      self.commandRouter.pushToastMessage('error', 'Playback',
+        'Spotify still holds the audio device - local playback not started.');
+      return '';
+    }
+    return self._mpdStartLocalPlayback(track);
+  });
+};
+
+// The original body of clearAddPlayTrack, reached only once the audio device is free.
+ControllerMpd.prototype._mpdStartLocalPlayback = function (track) {
+  var self = this;
+
   var sections = track.uri.split('/');
   var prev = '';
 
