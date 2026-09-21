@@ -182,7 +182,7 @@ its output is being piped, and a chained `&& echo` will not run.
 7. **The VU meter is INLINE in the audio path, and it costs more than the DSP.** The PCM
    chain is `postDsp → Peppyalsa (type meter, scopes.0 peppyalsa) → postpeppyalsa → hardware`,
    so the meter's ALSA plugin is not beside the stream, it is in it. Measured during DSD256 →
-   384 kHz playback: **`python3` (PeppyMetre) 112.5 % CPU vs `camilladsp` 18.8 %** — about
+   384 kHz playback: **`python3` (PeppyMeter) 112.5 % CPU vs `camilladsp` 18.8 %** — about
    6× the DSP. If audio glitching ever becomes audible, this is the first lever to examine,
    not the overclock (which is already at the 2800 MHz ceiling with `0x0` throttling).
    - Related sizing fact: the output buffer is **8192 frames = 21.3 ms at 384 kHz** but
@@ -196,8 +196,9 @@ its output is being piped, and a chained `&& echo` will not run.
      after, or a stopped stream yields a meaningless zero. An empty log means either no
      underruns or a blind instrument — positively control it (saturate the cores) before
      trusting a zero. It is **not** truncated per run, contrary to an earlier note.
-8. **The inline meter is DELIBERATE, and it is latency-HARMLESS — do not "fix" it by moving it
-   off the chain.** Two separate results, both measured 2026-09-21:
+8. **The inline meter is DELIBERATE — and `O_NONBLOCK` does NOT make it "latency-harmless".**
+   Do not overclaim here; an earlier version of this entry did, and independent review
+   corrected it. Two separate results, both measured 2026-09-21:
    - *Deliberate:* `peppy_screensaver/index.js` picks the topology and logs the choice. With
      `useDSP = True` (the Fusion bridge on, our device) it selects **`inline-meter (bridge on)`**
      — `${alsaInlineMeter}` → `Peppyalsa`, inline in the audio path. The off-path alternative
@@ -207,14 +208,29 @@ its output is being piped, and a chained `&& echo` will not run.
      the alternative says it *"avoids hw_params issues when meter is inline with main audio"* —
      but the alternative imposes a rate constraint, which would conflict with the standing
      **no-resampling** directive. So it is a deliberate trade-off, not an oversight.
-   - *Latency-harmless:* every handle on the meter FIFOs is **non-blocking** — `camilladsp`
-     writes `/tmp/myfifo` and `/tmp/myfifosa` with flags `04001` (`O_WRONLY|O_NONBLOCK`), the
-     core holds them `02404002`, the Python meter `02404000`. `libpeppyalsa.so` therefore
-     **cannot** stall the audio thread; a slow consumer drops data instead. **There is no
-     blocking to remove, so moving the meter "beside" the chain would not improve latency.**
+   - *What the fd flags actually establish, and what they do not:* every handle on the meter
+     FIFOs is non-blocking — `camilladsp` writes `/tmp/myfifo` and `/tmp/myfifosa` with flags
+     `04001` (`O_WRONLY|O_NONBLOCK`), the core holds them `02404002`, the Python meter
+     `02404000`. That **does** remove FIFO backpressure as a way to sleep the audio thread: a
+     slow consumer makes the write fail with `EAGAIN` rather than wait. It does **not** show
+     that the inline plugin is free of cost. `libpeppyalsa.so` still executes *synchronously in
+     the audio path*, and could copy/convert samples, take a lock, allocate per period, or do
+     its own error handling — none of which the descriptor flags can see, and none of which has
+     been verified. **"No FIFO backpressure" is not "no inline cost".**
+   - *The stronger evidence is the measurement, not the flags:* at normal load we measure
+     **zero** underruns at DSD256/384 kHz; deliberate 4-core saturation produced at worst
+     5 per 30 s. That supports "CPU contention is the observed risk", and **not** "the topology
+     is defective". It does not establish audibility either way.
    - The real cost is the **consumer's CPU**, and it is tunable, not structural:
      `screensaver/spectrum/config.txt` has `frame.rate = 30`, `update.ui.interval = 0.04`, and
      renders a 1920×480 skin straight to `/dev/fb0`; the scope uses `spectrum_size 20`,
      `smoothing_factor 60`, `decay_ms 500`. Reducing the frame rate or using a lighter skin is
      the lever that actually addresses the ~1.1-core cost. The meter only runs during playback
      (nothing is holding the FIFOs at idle).
+   - **Before any topology surgery, profile**: the audio-thread write path with `perf` or
+     scheduler tracing would settle whether the inline plugin adds jitter. Cheaper than
+     re-architecting, and the ranking of options is: leave topology → reduce consumer cost →
+     enlarge the buffer (21.3 ms at 384 kHz vs 186 ms at 44.1 kHz) → multi/duplicate *only after*
+     verifying at every source rate that `hw_params` stay unchanged → `nice`/`SCHED_FIFO` as a
+     last resort only, since it changes who loses under contention rather than making the meter
+     cheaper.
