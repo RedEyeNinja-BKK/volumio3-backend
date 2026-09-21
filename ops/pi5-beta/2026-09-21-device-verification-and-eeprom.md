@@ -1688,3 +1688,78 @@ two things — running the code against a real phone session, or an independent 
 bytes. The v9 → v10 sequence is the reviewer catching a real defect I had just introduced while fixing a
 previous one. That is the gate working, and it is why v10 goes straight back for a third round rather
 than being treated as settled.
+
+## 29. Review round 3 — REJECT, and a structural wall I had not seen
+
+Run `run_54cbb41b2e774eb3abb5f53c67082614`; receipt
+`operations/review-receipts/pi5-handover-2026-09-21-r3-v10.json`, **CLEAN-READONLY, authoritative**.
+
+**Verdict: REJECT — 2 blocking, 5 non-blocking.** Rounds 1 and 2 were confirmed closed. The new blocking
+finding was that v10's predicate is **"does a process named go-librespot hold the fifo"**, while the
+invariant the caller needs is **"no competing writer exists and none can begin"** — a temporal check, not
+ownership acquisition, and therefore vulnerable to a check-to-use race. That is correct, and it is a
+bigger objection than a coding slip.
+
+### 29.1 Investigating it turned up a wall worth recording
+
+I tried to close it properly by inverting the check to *"does ANY process hold the fifo for writing"*,
+classifying each holder's access mode from `/proc/<pid>/fdinfo`. **It is not implementable on this
+device:**
+
+* **MPD runs as its own user (`mpd`); the core runs as `volumio`.** So MPD's `fdinfo` is unreadable and
+  its access mode cannot be determined. Measured across the fifo's holders: `camilladsp`'s `fdinfo` reads
+  `flags=02404000` — arm octal, `& 3 == 0`, O_RDONLY, a reader, correct — while **MPD's `flags` field is
+  empty** because the file is not readable by us.
+* A blanket *unreadable ⇒ assume held* would flag unrelated system processes on every handoff and refuse
+  all playback. The check is therefore necessarily **targeted** at go-librespot — the one process this
+  handoff concerns, and the one that shares our uid.
+* A lock would need both writers to take it. The writers are MPD and go-librespot; neither takes a lock
+  this plugin could join, so there is no common lock to acquire.
+
+**My own probe failed in an instructive way during this work:** I classified holders with
+`acc=$(( mode & 3 ))`, and for MPD `mode` was the empty string, which shell arithmetic reads as `0` — so
+my probe printed **`RDONLY(reader)` for a process whose mode it had failed to read at all.** An unreadable
+answer is not an answer, and this is the third time in this work that an instrument reported a definite
+value for something it could not see (§15.2's unprivileged `/proc` scan, §19's stale daemon log, and now
+this).
+
+### 29.2 v12 — fix what is fixable, and say the rest out loud
+
+Patcher `ops/pi5-beta/patches/2026-09-21-v12-bounded-exact-confirmation.py`. Live spop
+`da9ce4c73fa564bbbf370f5baf093117b8ef51bb3b3afb21a81e679f428da4e8`.
+
+Fixed: **F3** candidates now match `comm` **or** a resolved `/proc/<pid>/exe` mentioning `librespot`;
+**F4** the scan is capped (4000 pids, 20000 fds, 400 ms) and **any cap exceeded returns "held"** so
+callers fail closed on a truncated view; **F5** the deadline is 3 s → 5 s and the refusal carries the
+elapsed time; **F6** the fifo path is compared **exactly**, so `/tmp/fusiondspfifo.backup` no longer
+counts.
+
+**Not fixed, and now stated in the code itself:** F1/F2. A comment block titled *"WHAT THIS IS, EXACTLY:
+a bounded proxy, not proof"* records the residual check-to-use window, why no common lock exists, why the
+stronger predicate is unimplementable at this uid split, and that the window is **not claimed to be
+closed**. This is the outcome round 2's own finding allowed for ("a bounded proxy, documented as such")
+in the absence of an external guarantee.
+
+Verified on device: handoff still confirms, single fifo writer, **zero refusals**, zero scan-budget
+exhaustions.
+
+Round 4 was submitted with an explicit pushback rather than another patch: accept the bounded-proxy
+framing, or **name a concrete mechanism** that would close the window under these constraints — because
+"not closable at this layer" and "not closed" are different findings and I needed to know which one I was
+holding. `run_b9552fd0aa8a4863ae18a2545d6e6a32`.
+
+## 30. Still open, and honestly bounded
+
+* **v10/v12 are deployed; round 4's verdict is pending.**
+* **The handover gap is ~351 ms measured, ~201 ms with the keeper.** `v11` (the in-plugin, non-blocking
+  fifo keeper) is **written, dry-run clean — staged
+  `abb3d51e4bf2d344d5f9bd165602f1d9bfd8d098e0019b9385a191a3c530572d` — and deliberately NOT deployed**:
+  it changes the audio-path lifecycle and should be reviewed before it runs, not slipped in underneath a
+  review of something else.
+* **The check-to-use window** (F1/F2) is a documented, accepted limitation of this layer, not a fix
+  pending.
+* **PeppyMeter's wrong track** during Spotify (§14.3) is untouched, and remains a display-only defect.
+* Two non-fatal third-party errors are characterised and deliberately not patched: `now_playing`'s
+  `getPluginInfo` throws once per core start inside its bundled `SystemUtils`, and the MPD play path threw
+  `...reading 'split'` three times in a single instant during one takeover on 2026-09-21 — 0 occurrences
+  since, not reproducible in subsequent tests, in code that precedes the patched region.
