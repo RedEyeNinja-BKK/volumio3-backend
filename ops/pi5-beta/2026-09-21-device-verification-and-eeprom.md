@@ -410,8 +410,19 @@ check remains open and is recorded as open rather than assumed.
 
 Playback was left in a consistent single-source state; nothing was left mid-transition. Two production
 files on the device now differ from their packages (the spop plugin and the mpd app plugin) — both with
-byte-exact rollback copies, both recorded here, and both the subject of an independent code review
-request raised before this entry was written. The defect class is a genuine Volumio behaviour (no
+byte-exact rollback copies and both recorded in §8.
+
+**Review status — no independent verdict has been obtained, and that is stated here rather than
+implied.** An independent review of the two patchers was requested three times and all three attempts
+failed to produce a verdict: attempt one returned a delegation stub with no findings, attempt two was
+lost by the review service (its run id answered HTTP 404 `run not found` and was not re-polled), and
+attempt three (run `run_36e29975154c4aba99e5642adf67a13a`) was still running when this entry was
+committed. Both patches were therefore applied on the strength of the live measurements in §8 alone.
+The findings of attempt three, when they exist, belong in §12 — if §12 is absent from this record, the
+review never returned and the §8 measurements remain the only supporting evidence. Two production
+files on a working device carry code that no second party has yet read.
+
+The defect class is a genuine Volumio behaviour (no
 service is released when a different service starts, and for `syncState` a service `stop` is
 indistinguishable from end-of-track), so the durable fix belongs upstream rather than only on this
 device.
