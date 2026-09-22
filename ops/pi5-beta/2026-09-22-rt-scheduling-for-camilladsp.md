@@ -78,13 +78,21 @@ producer), and below every kernel thread measured on this board — `migration/*
 
 ### The defect that the first deploy had — and that the current one fixes
 
-`-a`/`--all-tasks` in util-linux is **position-sensitive: it must precede `-p`.** Written the other
-way round the flag is *accepted and silently ignored* — `rc=0`, no error, no warning:
+`-a`/`--all-tasks` in util-linux is **position-sensitive.** Written with the priority *before* it,
+the flag is accepted and **silently ignored** — `rc=0`, no error, no warning. Measured on this
+device (util-linux 2.38.1) against a four-thread test process, three forms:
 
 ```sh
-chrt -f -p 45 -a <pid>      # -a inert: promotes the main thread and nothing else
-chrt -a -f -p 45 <pid>      # correct: every thread of the process
+chrt -f -p 45 -a <pid>      # INERT: rc=0, main thread only, workers left SCHED_OTHER
+chrt -f -p -a 35 <pid>      # correct: all four threads promoted
+chrt -a -f -p 45 <pid>      # correct: all four threads promoted (the form deployed here)
 ```
+
+The discriminator is narrower than “`-a` must come before `-p`”: `-a` must come before
+**`-p`'s priority argument**. It may follow `-p` itself and still be honoured — so the earlier
+wording of this record was too strong, and is corrected here. Only the first form above is
+broken, and it is broken in the worst way: it succeeds, and covers one thread instead of all of
+them. **Do not reorder these flags**, and do not “tidy” the priority to the front.
 
 The first deployment shipped the inert form. Measured consequence: the DSP's main thread was
 FIFO 45 in every reading, but in **4 of 5 successive spawns** the audio workers (`AlsaPlayback`,
