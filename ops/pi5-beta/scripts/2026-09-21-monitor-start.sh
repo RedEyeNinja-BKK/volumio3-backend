@@ -17,7 +17,7 @@ mkdir -p "$MON/shots"
 [ -x "$MON/stop.sh" ] && "$MON/stop.sh"
 
 echo "$$" > "$MON/monitor.pid"
-export DISPLAY=:0 XAUTHORITY=/home/volumio/.Xauthority
+export DISPLAY=:0 XAUTHORITY=DEVICE_HOME/.Xauthority
 date '+START %Y-%m-%d %H:%M:%S.%3N' > "$MON/started.txt"
 
 stdbuf -oL journalctl -f -o short-precise --no-pager > "$MON/journal.log" 2>&1 &

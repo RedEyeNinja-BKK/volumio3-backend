@@ -26,7 +26,7 @@ import sys, hashlib, difflib, subprocess, tempfile, os
 # unhandled except F5, which is a deliberate refusal contract.
 
 apply = '--apply' in sys.argv
-BK = '/home/volumio/pi5-fix-backup-20260921-021521/'
+BK = 'DEVICE_HOME/pi5-fix-backup-20260921-021521/'
 
 SPOP = '/data/plugins/music_service/spop/index.js'
 MPD = '/volumio/app/plugins/music_service/mpd/index.js'

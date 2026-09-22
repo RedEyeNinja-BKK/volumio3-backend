@@ -1,6 +1,6 @@
 import sys, hashlib, difflib
 apply = '--apply' in sys.argv
-BK = '/home/volumio/pi5-fix-backup-20260921-021521/'
+BK = 'DEVICE_HOME/pi5-fix-backup-20260921-021521/'
 
 def show(old, new, n=1):
     for l in difflib.unified_diff(old.splitlines(), new.splitlines(), 'v2', 'v3', lineterm='', n=n):

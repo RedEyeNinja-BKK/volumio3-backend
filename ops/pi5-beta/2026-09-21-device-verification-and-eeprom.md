@@ -1279,7 +1279,7 @@ the strongest argument yet for taking that gate seriously before any of this is 
 
 ### 19.1 /tmp on this device is RAM
 
-`df -h /tmp` -> `tmpfs 3.9G ... mounted on /tmp`. `/`, `/home/volumio` and `/data` are all one
+`df -h /tmp` -> `tmpfs 3.9G ... mounted on /tmp`. `/`, `DEVICE_HOME` and `/data` are all one
 disk-backed overlay (`230G`, ~4.5G used). **Nothing bulk should ever be written under `/tmp` on this
 device.** **measured**
 

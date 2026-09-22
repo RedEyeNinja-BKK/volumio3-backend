@@ -17,7 +17,7 @@ import sys, hashlib, difflib, subprocess, tempfile, os
 # calls it bare, with .call(), or as a method.
 
 apply = '--apply' in sys.argv
-BK = '/home/volumio/pi5-fix-backup-20260921-021521/'
+BK = 'DEVICE_HOME/pi5-fix-backup-20260921-021521/'
 P = '/data/plugins/music_service/spop/index.js'
 src = open(P).read()
 
@@ -30,7 +30,7 @@ NEW = """        // v6 (2026-09-21): .bind(self) is REQUIRED, not stylistic. The
         // core (systemd status=1/FAILURE), observed twice on 2026-09-21 at 12:30:23 and
         // 12:31:08 on the volatile path v5 was meant to fix. Bind it so it carries its own
         // receiver however the core calls it. Rollback:
-        // /home/volumio/pi5-fix-backup-20260921-021521/spop-index.v5.js
+        // DEVICE_HOME/pi5-fix-backup-20260921-021521/spop-index.v5.js
         callback: self.libRespotGoUnsetVolatile.bind(self)
 """
 

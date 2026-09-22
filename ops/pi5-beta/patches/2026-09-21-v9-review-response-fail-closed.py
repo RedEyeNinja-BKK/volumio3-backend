@@ -36,7 +36,7 @@ import sys, hashlib, difflib, subprocess, tempfile, os
 #   F8 (100 ms is not proven sufficient) - accepted; the alternative was the escalating delay.
 
 apply = '--apply' in sys.argv
-BK = '/home/volumio/pi5-fix-backup-20260921-021521/'
+BK = 'DEVICE_HOME/pi5-fix-backup-20260921-021521/'
 
 SPOP = '/data/plugins/music_service/spop/index.js'
 MPD = '/volumio/app/plugins/music_service/mpd/index.js'

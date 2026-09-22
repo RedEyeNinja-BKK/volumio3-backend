@@ -1,6 +1,6 @@
 import sys, hashlib, difflib
 apply = '--apply' in sys.argv
-BK = '/home/volumio/pi5-fix-backup-20260921-021521/'
+BK = 'DEVICE_HOME/pi5-fix-backup-20260921-021521/'
 P = '/data/plugins/music_service/spop/index.js'
 src = open(P).read()
 
@@ -18,7 +18,7 @@ NEW = """        // NOTE (pi5-beta fix 2026-09-21): the parentheses were removed
         //   (b) the registered "callback" is a promise, not a function, so the core's
         //       volatileCallback.call() cannot work when volatile really is unset.
         // Passing the function reference restores the intended behaviour. Rollback:
-        // /home/volumio/pi5-fix-backup-20260921-021521/spop-index.v4.js
+        // DEVICE_HOME/pi5-fix-backup-20260921-021521/spop-index.v4.js
         callback: self.libRespotGoUnsetVolatile"""
 
 assert src.count(OLD) == 1, 'the called-callback line is not uniquely located'

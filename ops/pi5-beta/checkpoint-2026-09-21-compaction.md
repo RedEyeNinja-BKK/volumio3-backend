@@ -83,7 +83,7 @@ Device health at that time: core `active`, **0 restarts**, **0 `FATAL ERROR`s si
 `/data/pi5-snapshots/` — `2026-09-21-{v7,v8,v10,v12}-good` plus `2026-09-21-bootconfig`, regenerable with
 `make-snapshot.sh <label>`. Each has a `files/` mirror of the absolute paths, a verified
 `MANIFEST.sha256`, an `ENVIRONMENT.txt`, and a `restore.sh` that re-verifies before copying back.
-Rollback copies for every plugin step are in `/home/volumio/pi5-fix-backup-20260921-021521/`.
+Rollback copies for every plugin step are in `DEVICE_HOME/pi5-fix-backup-20260921-021521/`.
 
 ---
 
@@ -105,7 +105,7 @@ receipt).
 
 Every receipt for the four handover rounds is `CLEAN-READONLY`, `authoritative`, `gating_eligible`, with
 `post_review_edits: []` — meaning the bytes reviewed are the bytes submitted. Receipts:
-`/opt/turnstone/operations/review-receipts/pi5-handover-2026-09-21-*.json`, copies committed to the fork.
+`WORKSPACE_ROOT/operations/review-receipts/pi5-handover-2026-09-21-*.json`, copies committed to the fork.
 
 **The three v11 envelopes are still OPEN** — I ran `begin` for each but never `end`, so those receipt files
 exist with no `verdict` field yet. Their verdicts were read from the run output, not from a closed receipt,
@@ -264,7 +264,7 @@ correction), then §4–§5 above.
 
 Things already established that cost time; recorded so a fresh context does not repeat them:
 
-* `/tmp` on this device is **RAM** (tmpfs); `/`, `/home/volumio` and `/data` are one disk-backed overlay.
+* `/tmp` on this device is **RAM** (tmpfs); `/`, `DEVICE_HOME` and `/data` are one disk-backed overlay.
 * "Spotify cannot be started from the device" is **true only with no session** — with one,
   `POST /player/play` works and the 5-byte `null` body is a healthy reply.
 * A **single-writer** claim from an unprivileged `/proc` scan is unsound — it cannot see `mpd` (different

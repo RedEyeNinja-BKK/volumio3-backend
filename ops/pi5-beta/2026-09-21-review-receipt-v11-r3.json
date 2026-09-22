@@ -1,20 +1,20 @@
 {
  "artifacts": {
-  "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3/2026-09-21-v11-fifo-keeper-proposal.py": {
+  "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3/2026-09-21-v11-fifo-keeper-proposal.py": {
    "ctime_ns": 1789981835636085956,
    "inode": 792648,
    "mtime_ns": 1789981835636085956,
    "sha256": "7f355660da309cdb1d92b1125aa0afeb17f5a62d2e10ebfcd75e35e8611701c1",
    "size": 14202
   },
-  "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3/REVIEW-REQUEST.md": {
+  "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3/REVIEW-REQUEST.md": {
    "ctime_ns": 1789981835636085956,
    "inode": 792650,
    "mtime_ns": 1789981835636085956,
    "sha256": "19d7ca767c5eaffaba9036bd97f8d24e670a9725457bd45976bdf3dddc161a4e",
    "size": 4356
   },
-  "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3/camilladsp-js.staged-v11b.js": {
+  "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3/camilladsp-js.staged-v11b.js": {
    "ctime_ns": 1789981835636085956,
    "inode": 792649,
    "mtime_ns": 1789981835636085956,
@@ -23,30 +23,30 @@
   }
  },
  "authoritative": true,
- "begin_cwd": "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3",
+ "begin_cwd": "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3",
  "closed_at": "2026-09-21T09:17:48+00:00",
  "gating_eligible": true,
  "label": "pi5 fifo keeper v11b generation-guarded",
  "opened_at": "2026-09-21T09:10:35+00:00",
  "phase": "end",
  "post_hashes": {
-  "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3/2026-09-21-v11-fifo-keeper-proposal.py": "7f355660da309cdb1d92b1125aa0afeb17f5a62d2e10ebfcd75e35e8611701c1",
-  "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3/REVIEW-REQUEST.md": "19d7ca767c5eaffaba9036bd97f8d24e670a9725457bd45976bdf3dddc161a4e",
-  "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3/camilladsp-js.staged-v11b.js": "f3621da85bb6dd71a62fba4c13fe22af2ffd98af7fbfff33ab5bbd1101415a4e"
+  "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3/2026-09-21-v11-fifo-keeper-proposal.py": "7f355660da309cdb1d92b1125aa0afeb17f5a62d2e10ebfcd75e35e8611701c1",
+  "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3/REVIEW-REQUEST.md": "19d7ca767c5eaffaba9036bd97f8d24e670a9725457bd45976bdf3dddc161a4e",
+  "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3/camilladsp-js.staged-v11b.js": "f3621da85bb6dd71a62fba4c13fe22af2ffd98af7fbfff33ab5bbd1101415a4e"
  },
  "post_review_edits": [],
  "pre_hashes": {
-  "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3/2026-09-21-v11-fifo-keeper-proposal.py": "7f355660da309cdb1d92b1125aa0afeb17f5a62d2e10ebfcd75e35e8611701c1",
-  "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3/REVIEW-REQUEST.md": "19d7ca767c5eaffaba9036bd97f8d24e670a9725457bd45976bdf3dddc161a4e",
-  "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3/camilladsp-js.staged-v11b.js": "f3621da85bb6dd71a62fba4c13fe22af2ffd98af7fbfff33ab5bbd1101415a4e"
+  "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3/2026-09-21-v11-fifo-keeper-proposal.py": "7f355660da309cdb1d92b1125aa0afeb17f5a62d2e10ebfcd75e35e8611701c1",
+  "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3/REVIEW-REQUEST.md": "19d7ca767c5eaffaba9036bd97f8d24e670a9725457bd45976bdf3dddc161a4e",
+  "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3/camilladsp-js.staged-v11b.js": "f3621da85bb6dd71a62fba4c13fe22af2ffd98af7fbfff33ab5bbd1101415a4e"
  },
  "problems": [],
- "receipt_path": "/opt/turnstone/operations/review-receipts/pi5-fifo-keeper-v11-r3.json",
- "review_output_dir": "/home/vincent/shared-workspace/operations/review-receipts",
+ "receipt_path": "WORKSPACE_ROOT/operations/review-receipts/pi5-fifo-keeper-v11-r3.json",
+ "review_output_dir": "OPERATOR_HOME/shared-workspace/operations/review-receipts",
  "review_subject": [
-  "/home/vincent/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/2026-09-21-v11-fifo-keeper-proposal.py",
-  "/home/vincent/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/REVIEW-REQUEST.md",
-  "/home/vincent/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/camilladsp-js.staged-v11b.js"
+  "OPERATOR_HOME/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/2026-09-21-v11-fifo-keeper-proposal.py",
+  "OPERATOR_HOME/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/REVIEW-REQUEST.md",
+  "OPERATOR_HOME/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/camilladsp-js.staged-v11b.js"
  ],
  "reviewer_report": null,
  "rule": "A READ-ONLY review may write only into the review-output dir. Any change to a gated artifact or to the frozen subject marks the review INVALID \u2014 REVIEW CONTAMINATED BY MUTATION and its verdict is not authoritative.",
@@ -54,21 +54,21 @@
  "run_id": "run_5bcd49a368ff4c6196e256f7e23faa57",
  "sandbox": null,
  "snapshot_fingerprints": {
-  "/home/vincent/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/2026-09-21-v11-fifo-keeper-proposal.py": {
+  "OPERATOR_HOME/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/2026-09-21-v11-fifo-keeper-proposal.py": {
    "ctime_ns": 1789981835660087376,
    "inode": 2906977,
    "mtime_ns": 1789981835636085956,
    "sha256": "7f355660da309cdb1d92b1125aa0afeb17f5a62d2e10ebfcd75e35e8611701c1",
    "size": 14202
   },
-  "/home/vincent/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/REVIEW-REQUEST.md": {
+  "OPERATOR_HOME/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/REVIEW-REQUEST.md": {
    "ctime_ns": 1789981835660087376,
    "inode": 2906975,
    "mtime_ns": 1789981835636085956,
    "sha256": "19d7ca767c5eaffaba9036bd97f8d24e670a9725457bd45976bdf3dddc161a4e",
    "size": 4356
   },
-  "/home/vincent/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/camilladsp-js.staged-v11b.js": {
+  "OPERATOR_HOME/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/camilladsp-js.staged-v11b.js": {
    "ctime_ns": 1789981835660087376,
    "inode": 2906976,
    "mtime_ns": 1789981835636085956,
@@ -77,30 +77,30 @@
   }
  },
  "snapshots": {
-  "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3/2026-09-21-v11-fifo-keeper-proposal.py": "/home/vincent/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/2026-09-21-v11-fifo-keeper-proposal.py",
-  "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3/REVIEW-REQUEST.md": "/home/vincent/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/REVIEW-REQUEST.md",
-  "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3/camilladsp-js.staged-v11b.js": "/home/vincent/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/camilladsp-js.staged-v11b.js"
+  "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3/2026-09-21-v11-fifo-keeper-proposal.py": "OPERATOR_HOME/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/2026-09-21-v11-fifo-keeper-proposal.py",
+  "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3/REVIEW-REQUEST.md": "OPERATOR_HOME/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/REVIEW-REQUEST.md",
+  "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3/camilladsp-js.staged-v11b.js": "OPERATOR_HOME/shared-workspace/operations/review-freeze/pi5 fifo keeper v11b generation-guarded-20260921T161035-820288/camilladsp-js.staged-v11b.js"
  },
  "state": "CLOSED",
  "token": "pi5 fifo keeper v11b generation-guarded-20260921T161035-820288",
  "verdict": "CLEAN-READONLY",
  "watch_before": {
-  "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3": {
-   "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3/2026-09-21-v11-fifo-keeper-proposal.py": {
+  "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3": {
+   "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3/2026-09-21-v11-fifo-keeper-proposal.py": {
     "ctime_ns": 1789981835636085956,
     "inode": 792648,
     "mtime_ns": 1789981835636085956,
     "sha256": "7f355660da309cdb1d92b1125aa0afeb17f5a62d2e10ebfcd75e35e8611701c1",
     "size": 14202
    },
-   "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3/REVIEW-REQUEST.md": {
+   "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3/REVIEW-REQUEST.md": {
     "ctime_ns": 1789981835636085956,
     "inode": 792650,
     "mtime_ns": 1789981835636085956,
     "sha256": "19d7ca767c5eaffaba9036bd97f8d24e670a9725457bd45976bdf3dddc161a4e",
     "size": 4356
    },
-   "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3/camilladsp-js.staged-v11b.js": {
+   "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3/camilladsp-js.staged-v11b.js": {
     "ctime_ns": 1789981835636085956,
     "inode": 792649,
     "mtime_ns": 1789981835636085956,
@@ -110,6 +110,6 @@
   }
  },
  "watch_roots": [
-  "/opt/turnstone/operations/reviews/pi5-fifo-keeper-v11-r3"
+  "WORKSPACE_ROOT/operations/reviews/pi5-fifo-keeper-v11-r3"
  ]
 }

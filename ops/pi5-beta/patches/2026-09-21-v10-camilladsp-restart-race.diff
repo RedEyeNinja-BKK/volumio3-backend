@@ -1,5 +1,5 @@
---- /opt/turnstone/operations/pi5-audio-fix-2026-09-21/camilladsp-js.live.js	2026-09-21 19:49:22.705681806 +0700
-+++ /opt/turnstone/operations/pi5-audio-fix-2026-09-21/camilladsp-js.v10.js	2026-09-21 19:49:56.127673770 +0700
+--- WORKSPACE_ROOT/operations/pi5-audio-fix-2026-09-21/camilladsp-js.live.js	2026-09-21 19:49:22.705681806 +0700
++++ WORKSPACE_ROOT/operations/pi5-audio-fix-2026-09-21/camilladsp-js.v10.js	2026-09-21 19:49:56.127673770 +0700
 @@ -43,7 +43,14 @@
       * In case of error, we wait with exponential backoff to avoid hogging CPU.
       * If too many consecutive quick respawns occur, stop respawning entirely.

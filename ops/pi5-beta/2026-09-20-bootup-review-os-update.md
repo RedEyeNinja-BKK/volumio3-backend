@@ -56,7 +56,7 @@ Pre-flight facts:
 - Therefore "update to latest" = OS packages only (136 upgradable incl. security: openssl
   3.0.20, openssh +deb12u10, sudo; kiosk's Chromium 143→153) + optionally the bootloader EEPROM.
 
-Backups staged first at `/home/volumio/update-backups-20260920/` (tarball + sha256 manifest):
+Backups staged first at `DEVICE_HOME/update-backups-20260920/` (tarball + sha256 manifest):
 `.env`, `config.txt`, `userconfig.txt`, `volumioconfig.txt`, `cmdline.txt`, `asound.conf`,
 i2s_dacs + alsa_controller configs, `camilladsp.yml`.
 
@@ -127,9 +127,9 @@ because the .list phantom claim survived — both superseded.)
 
 ## Artifacts on device
 
-- `/home/volumio/update-backups-20260920/` — pre-update backup set + manifest + both
+- `DEVICE_HOME/update-backups-20260920/` — pre-update backup set + manifest + both
   EXTERNALLY-MANAGED versions + `raspberrypi-sys-mods.list.bak` + apt/repair logs
-- `/home/volumio/audible-probe.py` — read-only audibility probe (FusionDSP fifo RMS/peak dBFS +
+- `DEVICE_HOME/audible-probe.py` — read-only audibility probe (FusionDSP fifo RMS/peak dBFS +
   CamillaDSP GetSignalLevels; play→measure→pause). Note: it blocks on the FIFO open if nothing
   is queued — queue a track first or run under `timeout`.
 
@@ -143,7 +143,7 @@ mismatch, the documented E2 failure) from **plays-then-wedges** (the runtime wed
 today, a different mechanism).
 
 Applied via `/tmp/apply-e2.sh` (all 5 steps rc=0), with fresh pre-change backups + manifest
-at `/home/volumio/update-backups-20260920/*.pre-e2retry`. Resulting bytes:
+at `DEVICE_HOME/update-backups-20260920/*.pre-e2retry`. Resulting bytes:
 
 | file | hash | vs documented E2 after-hash |
 |---|---|---|
@@ -157,7 +157,7 @@ Safety gates passed pre-apply: `hifiberry-dac.dtbo` present in `/boot/overlays/`
 `snd-soc-pcm5102a.ko.xz` + `snd-soc-hdmi-codec.ko.xz` in the running kernel's modules, and
 current state matched the documented "before" hashes exactly.
 
-**Rollback (one command):** `/home/volumio/update-backups-20260920/rollback-e2.sh` - restores
+**Rollback (one command):** `DEVICE_HOME/update-backups-20260920/rollback-e2.sh` - restores
 all five files to pre-E2-retry bytes (manifest-verified), then one cold start. FAT-side
 recovery copies (`*.volumio-bak-20260919`) still exist as the PC-side fallback if a config
 prevents booting.
