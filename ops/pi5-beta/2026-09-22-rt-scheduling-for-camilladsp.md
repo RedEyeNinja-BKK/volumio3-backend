@@ -67,10 +67,32 @@ runs `SCHED_OTHER`, and **the one process in this audio chain that actually hold
 | `10-audio-rt.conf` | grants the service a real-time priority **ceiling** of 45 |
 | `camilladsp-js.js` | makes the DSP obtain priority up to that ceiling |
 
-The drop-in is deliberately a **ceiling, not a pin**: it says what the unit *may* use, and the
-process decides per-thread. That follows the upstream design — the deployed `camilladsp` 4.1.3
-bundles the `audio_thread_priority` crate and contains its own promote/demote paths. The
-unit-level ceiling is what makes that existing mechanism able to succeed.
+The drop-in is deliberately a **ceiling, not a pin**: it says what the unit *may* use. **But a ceiling
+is a permission, not a policy — and this process does not decide for itself.**
+
+> **CORRECTION (2026-09-22).** An earlier revision of this record said the drop-in is a ceiling and
+> that "the process decides per-thread", attributing the effective policy to the deployed
+> `camilladsp`'s own `audio_thread_priority` promote/demote paths. **That second half was wrong, and
+> it is corrected here.** Measured against the deployed binary: `camilladsp --help` has **0** option
+> lines matching `prio|realtime|sched|rt`, and the binary contains **0** occurrences of
+> `sched_setscheduler`, `SCHED_FIFO` or `pthread_setsched`. **CamillaDSP 4.1.3 has no scheduling
+> control at all — there is no per-thread selection to speak of.**
+
+What actually applies the policy is our own FusionDSP wrapper, and it does so **group-wide**:
+
+| Layer | Mechanism | What it actually does |
+|---|---|---|
+| systemd drop-in on `volumio.service` | `LimitRTPRIO=45` | **permits only** — raises `RLIMIT_RTPRIO` for uid-volumio processes. Schedules nothing by itself. |
+| the backend (uid volumio) | inheritance | passes the 45 ceiling to the child processes it spawns — which is why the drop-in must sit on the backend rather than be applied to a running DSP. |
+| **CamillaDSP 4.1.3 itself** | **nothing** | no native scheduling control exists. |
+| **our FusionDSP JS wrapper** | `/usr/bin/chrt -a -f -p <prio> <pid>` | **imposes FIFO on the ENTIRE thread group** of the DSP in one call (`-a` = all tasks). This is what schedules anything. |
+| threads created *after* the grant | kernel inheritance | a thread created by an already-FIFO thread inherits the policy via `pthread_create` with default attributes. |
+
+**Consequence for verification (already adopted):** because the grant is group-wide and later threads
+inherit it, `chrt`'s **exit status is permanently insufficient evidence**. Verification must read back
+**every relevant TID**. The corrected statement for the record: the drop-in is a *permission*, our
+wrapper applies the policy, and nothing about the deployed behaviour is "CamillaDSP deciding for
+itself".
 
 **Why 45:** above mpd's two FIFO-40 device threads (the consumer must be able to preempt the
 producer), and below every kernel thread measured on this board — `migration/*` 99, `ntpd` 99,
@@ -120,7 +142,7 @@ why the order may not be "tidied", and it is what the measured results below ref
 
 ### Rollback
 
-An anchor is on the device at `/home/volumio/rt-backups-20260922-173541/`, holding the original
+An anchor is on the device at `DEVICE_HOME/rt-backups-20260922-173541/`, holding the original
 `camilladsp-js.js` and a metadata file with the pre-change owner, mode and hash. Restore is a file
 copy plus a service restart, driven by the documented script; the transaction record is verified
 before the anchor is relied on.
