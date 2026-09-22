@@ -105,7 +105,7 @@ receipt).
 
 Every receipt for the four handover rounds is `CLEAN-READONLY`, `authoritative`, `gating_eligible`, with
 `post_review_edits: []` — meaning the bytes reviewed are the bytes submitted. Receipts:
-`/opt/turnstone/operations/review-receipts/pi5-handover-2026-09-21-*.json`, copies committed to the fork.
+`[turnstone]/operations/review-receipts/pi5-handover-2026-09-21-*.json`, copies committed to the fork.
 
 **The three v11 envelopes are still OPEN** — I ran `begin` for each but never `end`, so those receipt files
 exist with no `verdict` field yet. Their verdicts were read from the run output, not from a closed receipt,
