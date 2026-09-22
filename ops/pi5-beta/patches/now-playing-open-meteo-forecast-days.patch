@@ -1,0 +1,37 @@
+Subject: [PATCH] now-playing: request 8 forecast days from Open-Meteo (restores TODAY + 7)
+
+The provider migration in 1.1.x silently lost a forecast day. 1.0.6 fetched
+OpenWeatherMap's daily array (8 entries) and dropped the leading one:
+
+    return forecast.slice(1); // First day of forecast is actually current day
+
+...which left TODAY + 7 forecast days for the client. The Open-Meteo rewrite
+dropped that compensation and requests only 7 days, so the client renders
+TODAY + 6 (7 columns).
+
+Open-Meteo supports up to 16 days, so requesting 8 restores the previous display
+without any client change.
+
+--- a/src/lib/api/open-meteo/index.ts
++++ b/src/lib/api/open-meteo/index.ts
+@@ -126,7 +126,7 @@
+         daily: ["temperature_2m_max", "temperature_2m_min", "weather_code", "wind_speed_10m_max", "relative_humidity_2m_mean"],
+         hourly: ["temperature_2m", "relative_humidity_2m", "wind_speed_10m", "weather_code", "is_day"],
+         current: ["temperature_2m", "relative_humidity_2m", "wind_speed_10m", "weather_code", "is_day"],
+-        forecast_days: 7,
++        forecast_days: 8,
+         forecast_hours: 24,
+         wind_speed_unit: __classPrivateFieldGet(this, _OpenMeteoAPI_units, "f") === 'metric' ? 'ms' : 'mph',
+         temperature_unit: __classPrivateFieldGet(this, _OpenMeteoAPI_units, "f") === 'metric' ? 'celsius' : 'fahrenheit',
+
+--- a/dist/lib/api/open-meteo/index.js
++++ b/dist/lib/api/open-meteo/index.js
+@@ -129,7 +129,7 @@
+         daily: ["temperature_2m_max", "temperature_2m_min", "weather_code", "wind_speed_10m_max", "relative_humidity_2m_mean"],
+         hourly: ["temperature_2m", "relative_humidity_2m", "wind_speed_10m", "weather_code", "is_day"],
+         current: ["temperature_2m", "relative_humidity_2m", "wind_speed_10m", "weather_code", "is_day"],
+-        forecast_days: 7,
++        forecast_days: 8,
+         forecast_hours: 24,
+         wind_speed_unit: __classPrivateFieldGet(this, _OpenMeteoAPI_units, "f") === 'metric' ? 'ms' : 'mph',
+         temperature_unit: __classPrivateFieldGet(this, _OpenMeteoAPI_units, "f") === 'metric' ? 'celsius' : 'fahrenheit',

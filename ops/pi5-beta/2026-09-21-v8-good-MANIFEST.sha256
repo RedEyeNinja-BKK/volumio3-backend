@@ -1,0 +1,14 @@
+4944154059b281c70331f0088d9387f8f5146d1fb661a60430a0815d3b435fdf  ./data/configuration/audio_interface/fusiondsp/camilladsp.yml
+b8668c4dba8b5530bdeca8462d40ead56228a4f4797962806fe8fae628c7f460  ./data/configuration/audio_interface/fusiondsp/config.json
+dda680b73525bb132686327064c8cc2f8aea6fd0165d44a05132140cdde047da  ./data/configuration/user_interface/now_playing/config.json
+d94d1516738c742ed0f14706fb65e5168a690c4f4b9f5e37e1c4fe9ec175f49b  ./data/configuration/user_interface/peppy_screensaver/config.json
+a4d7cb51c52f5cadc6d99031d587992f08255e9e1c5316649947803e70f9251d  ./data/go-librespot/config.yml
+9c1db0e3d845f64602961b9575e1e30272625c46e28a51794a4155760b04b504  ./data/plugins/audio_interface/fusiondsp/camilladsp-js.js
+84b7f831a4cc7cae8885dee98d36af1702d06d33ec4ec27cfc66406a260729f9  ./data/plugins/audio_interface/fusiondsp/index.js
+64e76b74ebaad504d2855750bf84c6e175885b348486066ead7f9e5df5bc77ba  ./data/plugins/music_service/spop/index.js
+a297a50484c37ffdbf6c2642ad24747098b0d324c4106b3485cd31033a666f2b  ./etc/asound.conf
+52cbbd6158fe6fbe004c42a329d6f2b0d689ce0bc0d130d11d9b123267dc9231  ./etc/mpd.conf
+ee1dd6a066ffacb643a01f59145dff5a153d22596183d5a47ebc2d75b718fa89  ./etc/systemd/system/volumio-kiosk.service.d/10-restart.conf
+b7bbaf54ddbf4407de2d59667821f0511cf54aaf7b3f0b0b899e8aa6d0f34f7d  ./etc/systemd/system/volumio-kiosk.service.d/20-blank-on-stop.conf
+419ddf6432b4a76189296a8aacb9036af61f242ada63a7c6b72a57b70295a73d  ./etc/systemd/system/volumio.service.d/override.conf
+4377a8f703c3bdc44e22d8e5b3e2c6d19cb4cb9229c623dc636bbf63a157fdf6  ./volumio/app/plugins/music_service/mpd/index.js

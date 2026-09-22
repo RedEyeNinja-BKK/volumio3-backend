@@ -1,0 +1,41 @@
+# Add your custom config.txt options to this file, which will be preserved during updates
+
+#DSI1 Use
+dtoverlay=vc4-kms-dsi-waveshare-panel,8_8_inch,rotation=90
+
+# --- Raspberry Pi 5 TURBO profile ---
+
+# DSI portrait 480x1920 (keep the screen alive for Now Playing)
+hdmi_force_hotplug=0
+disable_overscan=1
+framebuffer_width=480
+framebuffer_height=1920
+
+# If your touch controller needs I2C, leave i2c ON (don't disable it)
+
+# Use external DAC/I2S; avoid the analog jack
+dtparam=audio=off
+
+# High but commonly-stable OC (requires good cooling + strong PoE+ splitter/switch)
+arm_freq=2800
+core_freq=1100
+gpu_freq=1100
+v3d_freq=1100
+sdram_freq=2400
+over_voltage=6
+
+# Let it idle cool when not busy
+#force_turbo=1
+
+# Optional: active fan curve (adjust temps/speeds to taste)
+dtoverlay=rpi-active-fan,temperature=60000,speed=180,temperature=70000,speed=255
+
+# Keep unused buses off ONLY if you're sure you don't need them
+# (Touch over I2C? then keep i2c ON)
+dtparam=spi=off
+dtparam=uart=off
+dtparam=i2c=on
+
+#### Touch Display rotation setting below: do not alter ####
+display_lcd_rotate=1
+display_hdmi_rotate=1

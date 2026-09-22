@@ -1,0 +1,112 @@
+### arm dsd256 — 2026-09-22 15:50:13 +07
+### device volumio-pi5-beta ; window 30s ; item uri supplied as argv[1] and deliberately not printed
+
+== 0. pre-state ==
+gate:      [closed]
+governor:  [conservative]
+underruns: 11   (cumulative, camilladsp log)
+dsp pid:   31345
+source state now: {"status":"stop" "trackType":"flac" "samplerate":"44.1 kHz" "bitdepth":"16 bit" 
+queue captured: 1 item(s) -> restored at the end
+
+== 1. control arm — the operator queue at its own rate (queue NOT modified) ==
+-- control --
+gate:      [state: RUNNING]   dsp pid: 31345
+hw_params: <unavailable>
+source:    {"status":"play" "trackType":"flac" "samplerate":"44.1 kHz" "bitdepth":"16 bit" 
+dsp threads (tid,cls,rtprio,comm):
+   31345  FF     45 camilladsp
+   31346  TS      - flexi_logger-as
+   31348  TS      - flexi_logger-fl
+    6281  FF     45 camilladsp
+    6282  FF     45 camilladsp
+    6283  FF     45 camilladsp
+    6284  FF     45 AlsaPlayback
+    6285  FF     45 FileCapture
+    6287  FF     45 AlsaPlayback
+    6293  FF     45 camilladsp
+    6310  FF     45 camilladsp
+main thread row: [31345  FF     45 camilladsp]
+real-time threads box-wide (pid,tid,prio,comm): 23 row(s)
+   21,21,99,migration/0
+   24,24,99,migration/1
+   29,29,99,migration/2
+   34,34,99,migration/3
+   62,62,50,watchdogd
+   96,96,50,irq/36-aerdrv
+   99,99,50,irq/42-aerdrv
+   104,104,50,irq/165-mmc0
+   105,105,50,irq/166-mmc1
+   259,259,50,card0-crtc0
+   777,777,50,irq/170-1000800000.codec
+   1160,1160,99,ntpd
+   17848,17867,40,rtio
+   17848,18642,40,output:alsa
+   31345,31345,45,camilladsp
+   31345,6281,45,camilladsp
+   31345,6282,45,camilladsp
+   31345,6283,45,camilladsp
+   31345,6284,45,AlsaPlayback
+   31345,6285,45,FileCapture
+   31345,6287,45,AlsaPlayback
+   31345,6293,45,camilladsp
+   31345,6310,45,camilladsp
+   no DSP thread above RT_PRIO=45: asserted
+sampled 30s: dsp CPU 46 jiffies (CLK_TCK=100) = 1% of one core
+underruns/overruns: 11 -> 11 (delta 0)
+RESULT control: gate RUNNING for the full window; RT main thread 31345  FF     45 camilladsp; underrun delta 0
+
+control arm ended; gate now [closed]
+
+== 2. high-rate arm — the supplied DSD item ==
+replaceAndPlay: {"response":"success"}
+-- high-rate --
+gate:      [state: RUNNING]   dsp pid: 7000
+hw_params: <unavailable>
+source:    {"status":"play" "trackType":"dsf" "samplerate":"11.28 MHz" "bitdepth":"1 bit" 
+dsp threads (tid,cls,rtprio,comm):
+    7000  FF     45 camilladsp
+    7001  TS      - flexi_logger-as
+    7002  TS      - flexi_logger-fl
+    7005  TS      - camilladsp
+    7006  TS      - camilladsp
+    7007  TS      - camilladsp
+    7008  TS      - AlsaPlayback
+    7009  TS      - FileCapture
+    7012  TS      - AlsaPlayback
+    7041  TS      - camilladsp
+main thread row: [ 7000  FF     45 camilladsp]
+real-time threads box-wide (pid,tid,prio,comm): 15 row(s)
+   21,21,99,migration/0
+   24,24,99,migration/1
+   29,29,99,migration/2
+   34,34,99,migration/3
+   62,62,50,watchdogd
+   96,96,50,irq/36-aerdrv
+   99,99,50,irq/42-aerdrv
+   104,104,50,irq/165-mmc0
+   105,105,50,irq/166-mmc1
+   259,259,50,card0-crtc0
+   777,777,50,irq/170-1000800000.codec
+   1160,1160,99,ntpd
+   7000,7000,45,camilladsp
+   17848,17867,40,rtio
+   17848,18642,40,output:alsa
+   no DSP thread above RT_PRIO=45: asserted
+sampled 30s: dsp CPU 296 jiffies (CLK_TCK=100) = 9% of one core
+underruns/overruns: 11 -> 11 (delta 0)
+RESULT high-rate: gate RUNNING for the full window; RT main thread  7000  FF     45 camilladsp; underrun delta 0
+
+high-rate arm ended; gate now [closed]
+
+== 3. restore the captured queue ==
+addToQueue: {"response":"success"}
+queue before: 1 item(s) ; after restore: 2 item(s)
+   QUEUE RESTORE INCOMPLETE — count differs; this is reported, not hidden
+
+### summary: control rc=0, high-rate rc=0
+### device left: gate=[closed] governor=[conservative]
+### arm dsd256 complete — 2026-09-22 15:51:41 +07
+
+== restore ==
+device left: gate=[closed] governor=[conservative]

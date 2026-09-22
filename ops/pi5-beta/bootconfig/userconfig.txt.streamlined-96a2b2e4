@@ -1,0 +1,58 @@
+# Add your custom config.txt options to this file, which will be preserved during updates
+
+#DSI1 Use
+dtoverlay=vc4-kms-dsi-waveshare-panel,8_8_inch,rotation=90
+
+# --- Raspberry Pi 5 TURBO profile ---
+# VERIFIED 2026-09-21 under a 4-core load: arm 2800 MHz, core/v3d 1100 MHz,
+# get_throttled 0x0 including the "ever" bits, 73.6 C sustained. Display
+# (card0-DSI-2 480x1920) and the Goodix touch controller over I2C both confirmed.
+
+# KEPT DELIBERATELY: this OVERRIDES the hdmi_force_hotplug=1 that Volumio sets in
+# volumioconfig.txt. config.txt includes volumioconfig.txt first and userconfig.txt
+# second, so this file wins. Not dead config - the panel is DSI and there is no
+# HDMI sink. Documented so it is not removed by mistake.
+hdmi_force_hotplug=0
+
+# Use external DAC/I2S; overrides Volumio's dtparam=audio=on. The DAC overlay
+# itself lives in config.txt ('Volumio i2s setting below: do not alter' ->
+# dtoverlay=hifiberry-dac). Pi 5 has no analog jack anyway.
+dtparam=audio=off
+
+# Overclock (needs good cooling + a strong PoE+ supply; neither is exceeded here)
+arm_freq=2800
+core_freq=1100
+v3d_freq=1100
+over_voltage=6
+# Removed 2026-09-21 as INERT on Pi 5, both verified by measurement:
+#   gpu_freq=1100    - not a Pi 5 knob; v3d_freq/core_freq cover it
+#   sdram_freq=2400  - SDRAM clock is not user-settable on Pi 5
+#                      (vcgencmd measure_clock sdram returns 0)
+
+# Let it idle cool when not busy
+#force_turbo=1
+
+# The Pi 5 fan is driven by the KERNEL's default thermal trips (50/60/67.5/75 C),
+# not by config.txt. Verified adequate: 0x0 throttled at 73.6 C under sustained
+# load, fan pwm 175/255.
+# Removed 2026-09-21: dtoverlay=rpi-active-fan,temperature=60000,speed=180,...
+#   rpi-active-fan.dtbo does NOT exist in /boot/overlays (available: gpio-fan,
+#   i2c-fan, pwm-gpio-fan). That line did nothing and implied a custom curve that
+#   was never in effect.
+
+# Keep unused buses off ONLY if you are sure you do not need them.
+# The touch controller is Goodix on I2C, so i2c stays on; Bluetooth is on its own
+# UART (hci0 present with uart=off), so uart=off is safe here.
+dtparam=spi=off
+dtparam=uart=off
+dtparam=i2c=on
+
+# Removed 2026-09-21 as LEGACY (no effect under vc4-kms on Pi 5):
+#   disable_overscan=1
+#   framebuffer_width=480 / framebuffer_height=1920
+#   The panel mode comes from the DSI overlay; DRM reports card0-DSI-2 480x1920
+#   with these absent.
+
+#### Touch Display rotation setting below: do not alter ####
+display_lcd_rotate=1
+display_hdmi_rotate=1

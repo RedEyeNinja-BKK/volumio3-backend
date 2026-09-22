@@ -1,0 +1,62 @@
+# 2026-09-22 — `chrt -a` position sensitivity: three forms, measured
+
+Device: pi5-beta. `chrt` from util-linux 2.38.1. Method: a test process with **four** threads
+(`python3`, one main thread plus three sleeping worker threads), each form applied to a fresh
+process, the scheduling policy and priority of **every** thread read back with `chrt -p` on each
+`/proc/<pid>/task/<tid>`.
+
+The point of the test: determine precisely how `-a`/`--all-tasks` has to be positioned for it to be
+honoured. The prior belief — "it must come before `-p`" — is too strong; see the result for form B.
+
+## Form A — `chrt -f -p 45 <pid>` with `-a` appended AFTER the priority
+
+```
+    rc=0
+    23159 SCHED_FIFO/45     <- main thread promoted
+    23161 SCHED_OTHER/0     <- worker NOT promoted
+    23162 SCHED_OTHER/0     <- worker NOT promoted
+    23163 SCHED_OTHER/0     <- worker NOT promoted
+```
+
+**`-a` is inert.** The command exits 0, prints nothing, and promotes one thread of four. This is the
+form the first deployment of the CamillaDSP grant shipped, and it is the worst available failure
+mode: success is reported and coverage is silently partial.
+
+## Form B — `chrt -f -p -a 35 <pid>`: `-a` after `-p`, before the priority argument
+
+```
+    rc=0
+    23208 SCHED_FIFO/35
+    23210 SCHED_FIFO/35
+    23211 SCHED_FIFO/35
+    23212 SCHED_FIFO/35
+```
+
+**All four threads promoted.** This form is correct, and this is why "`-a` must precede `-p`" is
+imprecise: `-a` here *follows* `-p` and is still honoured.
+
+## Form C — `chrt -a -f -p 45 <pid>`: `-a` first
+
+```
+    rc=0
+    23257 SCHED_FIFO/45
+    23259 SCHED_FIFO/45
+    23260 SCHED_FIFO/45
+    23261 SCHED_FIFO/45
+```
+
+**All four threads promoted.** This is the form the current deployment uses.
+
+## Conclusion
+
+The discriminator is whether `-a` precedes **`-p`'s priority argument**, not whether it precedes the
+`-p` flag itself. Forms B and C are both correct; form A silently under-applies.
+
+Practical consequence for any future edit: moving the priority in front of `-a` — a change that looks
+like cosmetic tidying — silently reduces coverage from all threads to one, with `rc=0` and no
+warning. The comment in the deployed source says not to reorder these flags, and this measurement is
+why.
+
+Note on scope: this corrects the *wording* of the change record. It does not change any deployed
+byte — the deployed form (C) was already the correct one and was verified by measuring every thread
+of a live audio stream.

@@ -1,0 +1,112 @@
+# device control arm C - pi5-beta, verifier under test: stage/candidate/verify.sh (r11) - 2026-09-22T18:19:49+07:00
+
+### arm C — 2026-09-22 18:19:49 +07
+### device volumio-pi5-beta ; verifier [workstream]/stage/candidate/verify.sh
+
+### arm C: a process that is ALREADY real-time (FIFO 40) when the baseline is taken, and
+### spawns a NEW thread once the verifier has taken that baseline. The new thread inherits
+### FIFO 40, so it appears as 'new' against the baseline while its pid does not — mpd's shape.
+launched
+### arm process: pid 31583
+###   pid 31583's current scheduling policy: SCHED_FIFO
+###   pid 31583's current scheduling priority: 40
+
+### running the verifier
+
+### baseline taken (saw: == 3. drive a fresh spawn and read the policy back ==)
+== 1. deployed artifacts are the reviewed bytes ==
+camilladsp-js.js 10236af890a92cb37b873bb5c7b10596c90e65e0d258baeb08474c3ec891b429
+10-audio-rt.conf 3db49e30892f99fde79e03cfa854cc371fa457835c1366aa055b145536d3c958
+== 2. backend carries the ceiling, on the unit's own MainPID ==
+MainPID 21917 exe=/usr/bin/node
+  Max realtime priority     45                   45                   
+== baseline: pre-playback real-time inventory (for the regression check) ==
+  before: 104,104,50,irq/165-mmc0,64
+  before: 105,105,50,irq/166-mmc1,64
+  before: 1160,1160,99,ntpd,1332
+  before: 21,21,99,migration/0,0
+  before: 22343,22355,40,rtio,9127321
+  before: 22343,22582,40,output:alsa,9127321
+  before: 24,24,99,migration/1,0
+  before: 259,259,50,card0-crtc0,108
+  before: 29,29,99,migration/2,0
+  before: 31509,31509,45,camilladsp,9390701
+  before: 31509,31510,45,flexi_logger-as,9390701
+  before: 31509,31511,45,flexi_logger-fl,9390701
+  before: 31583,31583,40,python3,9391117
+  before: 34,34,99,migration/3,0
+  before: 62,62,50,watchdogd,3
+  before: 777,777,50,irq/170-1000800000.codec,1221
+  before: 96,96,50,irq/36-aerdrv,52
+  before: 99,99,50,irq/42-aerdrv,64
+  (kernel threads at rtprio 99/50 and mpd's two FIFO-40 threads are the pre-existing set)
+== 3. drive a fresh spawn and read the policy back ==
+gate=[state: RUNNING]  camilladsp pid before=[31509] after=[31509]
+grant  (drop-in) installed : 2026-09-22 14:31:33  [1790062293599707553 ns]
+camilladsp start          : 2026-09-22 18:19:45  [tick-resolution LOWER BOUND from 9390701 ticks since boot; the true start lies in the following 10ms]
+   install instant precedes the DSP's earliest possible start — ordering established
+the measured DSP came into existence after the grant: asserted (sub-second install instant vs the DSP's tick-resolution lower bound; the backend comparison is a consistency check, not an independent proof)
+   note: the pid did not change across playback (no samplerate change, so the plugin did
+   not stop+start the DSP). Informational only — freshness is established above.
+camilladsp (pid 31509) :: Max realtime priority     45                   45                   
+camilladsp carries the 45 ceiling from volumio.service: asserted
+== per-thread scheduling policy of pid 31509 ==
+  31509 camilladsp SCHED_FIFO 45
+  31510 flexi_logger-as SCHED_FIFO 45
+  31511 flexi_logger-fl SCHED_FIFO 45
+  31792 camilladsp SCHED_FIFO 45
+  31793 camilladsp SCHED_FIFO 45
+  31794 camilladsp SCHED_FIFO 45
+  31795 AlsaPlayback SCHED_FIFO 45
+  31796 FileCapture SCHED_FIFO 45
+  31798 AlsaPlayback SCHED_FIFO 45
+  31807 camilladsp SCHED_FIFO 45
+  31840 camilladsp SCHED_FIFO 45
+
+main (deadline-holding) thread: SCHED_FIFO/45
+main thread is SCHED_FIFO 45: asserted
+every thread of the process is SCHED_FIFO 45
+worker coverage: every non-logger thread is SCHED_FIFO 45 (incl. AlsaPlayback, FileCapture): asserted
+== 4. plugin's own application line (volumio.service journal) ==
+instrument control: 'FusionDsp -' lines visible in the journal = 600
+  Sep 22 18:16:56 volumio-pi5-beta volumio[21917]: info: camilladsp real-time priority 45 applied to pid 29840
+  Sep 22 18:19:27 volumio-pi5-beta volumio[21917]: info: camilladsp real-time priority 45 applied to pid 30740
+  Sep 22 18:19:45 volumio-pi5-beta volumio[21917]: info: camilladsp real-time priority 45 applied to pid 31509
+  (the plugin logged an application attempt; the thread policies in step 3 remain the
+   authoritative reading — a logged application is not by itself proof of the policy)
+== 5. regression check: no NEW real-time threads beyond camilladsp's ==
+newly real-time vs baseline:
+  31509,31792,45,camilladsp,9390701
+  31509,31793,45,camilladsp,9390701
+  31509,31794,45,camilladsp,9390701
+  31509,31795,45,AlsaPlayback,9390701
+  31509,31796,45,FileCapture,9390701
+  31509,31798,45,AlsaPlayback,9390701
+  31509,31807,45,camilladsp,9390701
+  31509,31840,45,camilladsp,9390701
+  31583,31779,40,python3,9391117
+   not attributable: python3 (tid 31779, prio 40) in pid 31583 [session-1671.scope] — already real-time before playback
+      its own ceiling: Max realtime priority     99                   99                     (independent of volumio.service)
+no newly real-time thread is attributable to this grant except camilladsp (pid 31509): asserted
+   SCOPE OF THIS ASSERTION: it is a deliberately conservative, SYSTEM-WIDE regression check.
+   A process outside volumio.service that newly becomes real-time fails it too, even though such a
+   process plainly did not get its authority from this change — control arm B is exactly that
+   shape. The claim here is 'nothing new went real-time', not 'this grant caused anything that did'.
+   the property asserted here is ENDPOINT SNAPSHOT ATTRIBUTION — that no real-time authority
+   attributable to this grant existed at the end of the playback window — not continuous
+   absence across it. A thread that became real-time and returned to SCHED_OTHER between the
+   two snapshots would not appear. Sampling more often would narrow that gap, not close it.
+== 6. sustained-load check: the DSP must not monopolize a CPU ==
+camilladsp CPU over 6 s: 9 jiffies (CLK_TCK=100) = 1% of one core
+underrun/overrun count in /tmp/camilladsp.log: 0 -> 0
+underruns/overruns during the sample: 0
+== 7. leave the device as found ==
+final gate=[closed] governor=[conservative]
+
+VERIFY COMPLETE — all asserted properties hold.
+
+### arm C: the allowance branch was EXERCISED — verify.sh classified the pre-existing RT pid
+### arm C complete: verify.sh exit 0
+cleaned up arm process pid 31583
+### device left: gate=[closed] governor=[conservative]
+run-arm.sh exit: 0

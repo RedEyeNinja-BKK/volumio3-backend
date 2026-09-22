@@ -1,0 +1,215 @@
+{
+ "artifacts": {
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/REVIEW-REQUEST.md": {
+   "ctime_ns": 1789980032626590636,
+   "inode": 792617,
+   "mtime_ns": 1789980032626590636,
+   "sha256": "1859b9b98f6403f061c4238dbdb92fb10699839aacc9ea8c270928bddb8f7096",
+   "size": 6750
+  },
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/2026-09-21-v9-review-response-fail-closed.py": {
+   "ctime_ns": 1789980018717772458,
+   "inode": 792616,
+   "mtime_ns": 1789980018717772458,
+   "sha256": "94f9b944d1e43f7ad2a99ebdc72f41f0c68f838512b49e26b359c74a884a1ecf",
+   "size": 16355
+  },
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/camilladsp-js-stock-to-live.diff": {
+   "ctime_ns": 1789980018710772046,
+   "inode": 792613,
+   "mtime_ns": 1789980018710772046,
+   "sha256": "243dea6a4dda44461aac248ae4af39c1d5a792d9444d38baee0f742a6bffe359",
+   "size": 3418
+  },
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/live-digests.txt": {
+   "ctime_ns": 1789980018713772222,
+   "inode": 792614,
+   "mtime_ns": 1789980018713772222,
+   "sha256": "d99703e9b5aefdff60890616120d8b7e81bfd5897c65d634dbc486d8a7bd3592",
+   "size": 242
+  },
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/mpd-index-stock-to-live.diff": {
+   "ctime_ns": 1789980018707771870,
+   "inode": 792612,
+   "mtime_ns": 1789980018707771870,
+   "sha256": "bd982eaa797c47cf6b2fe09fc107a1bf8a6ce00fd08d3f47ee61cfb47515ca08",
+   "size": 3940
+  },
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/spop-index-stock-to-live.diff": {
+   "ctime_ns": 1789980018704771693,
+   "inode": 792611,
+   "mtime_ns": 1789980018704771693,
+   "sha256": "202210915bf7bc5629067eb475d1e206cf4c165e2e4da596dd2b46f65cfaada4",
+   "size": 14795
+  },
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/stock-digests.txt": {
+   "ctime_ns": 1789980018715772340,
+   "inode": 792615,
+   "mtime_ns": 1789980018715772340,
+   "sha256": "6793b997a80d0b5cd51f1a06287e0862d1800f25803b6d3633776381353af5ce",
+   "size": 242
+  }
+ },
+ "authoritative": true,
+ "begin_cwd": "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2",
+ "closed_at": "2026-09-21T08:43:01+00:00",
+ "gating_eligible": true,
+ "label": "pi5-beta handover v9 review response",
+ "opened_at": "2026-09-21T08:40:39+00:00",
+ "phase": "end",
+ "post_hashes": {
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/REVIEW-REQUEST.md": "1859b9b98f6403f061c4238dbdb92fb10699839aacc9ea8c270928bddb8f7096",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/2026-09-21-v9-review-response-fail-closed.py": "94f9b944d1e43f7ad2a99ebdc72f41f0c68f838512b49e26b359c74a884a1ecf",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/camilladsp-js-stock-to-live.diff": "243dea6a4dda44461aac248ae4af39c1d5a792d9444d38baee0f742a6bffe359",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/live-digests.txt": "d99703e9b5aefdff60890616120d8b7e81bfd5897c65d634dbc486d8a7bd3592",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/mpd-index-stock-to-live.diff": "bd982eaa797c47cf6b2fe09fc107a1bf8a6ce00fd08d3f47ee61cfb47515ca08",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/spop-index-stock-to-live.diff": "202210915bf7bc5629067eb475d1e206cf4c165e2e4da596dd2b46f65cfaada4",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/stock-digests.txt": "6793b997a80d0b5cd51f1a06287e0862d1800f25803b6d3633776381353af5ce"
+ },
+ "post_review_edits": [],
+ "pre_hashes": {
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/REVIEW-REQUEST.md": "1859b9b98f6403f061c4238dbdb92fb10699839aacc9ea8c270928bddb8f7096",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/2026-09-21-v9-review-response-fail-closed.py": "94f9b944d1e43f7ad2a99ebdc72f41f0c68f838512b49e26b359c74a884a1ecf",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/camilladsp-js-stock-to-live.diff": "243dea6a4dda44461aac248ae4af39c1d5a792d9444d38baee0f742a6bffe359",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/live-digests.txt": "d99703e9b5aefdff60890616120d8b7e81bfd5897c65d634dbc486d8a7bd3592",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/mpd-index-stock-to-live.diff": "bd982eaa797c47cf6b2fe09fc107a1bf8a6ce00fd08d3f47ee61cfb47515ca08",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/spop-index-stock-to-live.diff": "202210915bf7bc5629067eb475d1e206cf4c165e2e4da596dd2b46f65cfaada4",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/stock-digests.txt": "6793b997a80d0b5cd51f1a06287e0862d1800f25803b6d3633776381353af5ce"
+ },
+ "problems": [],
+ "receipt_path": "[turnstone]/operations/review-receipts/pi5-handover-2026-09-21-r2-v9.json",
+ "review_output_dir": "[ops]/review-receipts",
+ "review_subject": [
+  "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/2026-09-21-v9-review-response-fail-closed.py",
+  "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/REVIEW-REQUEST.md",
+  "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/camilladsp-js-stock-to-live.diff",
+  "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/live-digests.txt",
+  "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/mpd-index-stock-to-live.diff",
+  "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/spop-index-stock-to-live.diff",
+  "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/stock-digests.txt"
+ ],
+ "reviewer_report": null,
+ "rule": "A READ-ONLY review may write only into the review-output dir. Any change to a gated artifact or to the frozen subject marks the review INVALID \u2014 REVIEW CONTAMINATED BY MUTATION and its verdict is not authoritative.",
+ "run_ended_at": "1789980143",
+ "run_id": "run_927de445de8a4d90a622948e6988b3c7",
+ "sandbox": null,
+ "snapshot_fingerprints": {
+  "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/2026-09-21-v9-review-response-fail-closed.py": {
+   "ctime_ns": 1789980039365987120,
+   "inode": 2903527,
+   "mtime_ns": 1789980018717772458,
+   "sha256": "94f9b944d1e43f7ad2a99ebdc72f41f0c68f838512b49e26b359c74a884a1ecf",
+   "size": 16355
+  },
+  "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/REVIEW-REQUEST.md": {
+   "ctime_ns": 1789980039365987120,
+   "inode": 2903521,
+   "mtime_ns": 1789980032626590636,
+   "sha256": "1859b9b98f6403f061c4238dbdb92fb10699839aacc9ea8c270928bddb8f7096",
+   "size": 6750
+  },
+  "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/camilladsp-js-stock-to-live.diff": {
+   "ctime_ns": 1789980039365987120,
+   "inode": 2903524,
+   "mtime_ns": 1789980018710772046,
+   "sha256": "243dea6a4dda44461aac248ae4af39c1d5a792d9444d38baee0f742a6bffe359",
+   "size": 3418
+  },
+  "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/live-digests.txt": {
+   "ctime_ns": 1789980039365987120,
+   "inode": 2903525,
+   "mtime_ns": 1789980018713772222,
+   "sha256": "d99703e9b5aefdff60890616120d8b7e81bfd5897c65d634dbc486d8a7bd3592",
+   "size": 242
+  },
+  "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/mpd-index-stock-to-live.diff": {
+   "ctime_ns": 1789980039365987120,
+   "inode": 2903523,
+   "mtime_ns": 1789980018707771870,
+   "sha256": "bd982eaa797c47cf6b2fe09fc107a1bf8a6ce00fd08d3f47ee61cfb47515ca08",
+   "size": 3940
+  },
+  "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/spop-index-stock-to-live.diff": {
+   "ctime_ns": 1789980039365987120,
+   "inode": 2903522,
+   "mtime_ns": 1789980018704771693,
+   "sha256": "202210915bf7bc5629067eb475d1e206cf4c165e2e4da596dd2b46f65cfaada4",
+   "size": 14795
+  },
+  "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/stock-digests.txt": {
+   "ctime_ns": 1789980039365987120,
+   "inode": 2903526,
+   "mtime_ns": 1789980018715772340,
+   "sha256": "6793b997a80d0b5cd51f1a06287e0862d1800f25803b6d3633776381353af5ce",
+   "size": 242
+  }
+ },
+ "snapshots": {
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/REVIEW-REQUEST.md": "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/REVIEW-REQUEST.md",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/2026-09-21-v9-review-response-fail-closed.py": "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/2026-09-21-v9-review-response-fail-closed.py",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/camilladsp-js-stock-to-live.diff": "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/camilladsp-js-stock-to-live.diff",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/live-digests.txt": "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/live-digests.txt",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/mpd-index-stock-to-live.diff": "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/mpd-index-stock-to-live.diff",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/spop-index-stock-to-live.diff": "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/spop-index-stock-to-live.diff",
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/stock-digests.txt": "[ops]/review-freeze/pi5-beta handover v9 review response-20260921T154039-812204/stock-digests.txt"
+ },
+ "state": "CLOSED",
+ "token": "pi5-beta handover v9 review response-20260921T154039-812204",
+ "verdict": "CLEAN-READONLY",
+ "watch_before": {
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2": {
+   "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/REVIEW-REQUEST.md": {
+    "ctime_ns": 1789980032626590636,
+    "inode": 792617,
+    "mtime_ns": 1789980032626590636,
+    "sha256": "1859b9b98f6403f061c4238dbdb92fb10699839aacc9ea8c270928bddb8f7096",
+    "size": 6750
+   },
+   "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/2026-09-21-v9-review-response-fail-closed.py": {
+    "ctime_ns": 1789980018717772458,
+    "inode": 792616,
+    "mtime_ns": 1789980018717772458,
+    "sha256": "94f9b944d1e43f7ad2a99ebdc72f41f0c68f838512b49e26b359c74a884a1ecf",
+    "size": 16355
+   },
+   "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/camilladsp-js-stock-to-live.diff": {
+    "ctime_ns": 1789980018710772046,
+    "inode": 792613,
+    "mtime_ns": 1789980018710772046,
+    "sha256": "243dea6a4dda44461aac248ae4af39c1d5a792d9444d38baee0f742a6bffe359",
+    "size": 3418
+   },
+   "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/live-digests.txt": {
+    "ctime_ns": 1789980018713772222,
+    "inode": 792614,
+    "mtime_ns": 1789980018713772222,
+    "sha256": "d99703e9b5aefdff60890616120d8b7e81bfd5897c65d634dbc486d8a7bd3592",
+    "size": 242
+   },
+   "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/mpd-index-stock-to-live.diff": {
+    "ctime_ns": 1789980018707771870,
+    "inode": 792612,
+    "mtime_ns": 1789980018707771870,
+    "sha256": "bd982eaa797c47cf6b2fe09fc107a1bf8a6ce00fd08d3f47ee61cfb47515ca08",
+    "size": 3940
+   },
+   "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/spop-index-stock-to-live.diff": {
+    "ctime_ns": 1789980018704771693,
+    "inode": 792611,
+    "mtime_ns": 1789980018704771693,
+    "sha256": "202210915bf7bc5629067eb475d1e206cf4c165e2e4da596dd2b46f65cfaada4",
+    "size": 14795
+   },
+   "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2/artifacts/stock-digests.txt": {
+    "ctime_ns": 1789980018715772340,
+    "inode": 792615,
+    "mtime_ns": 1789980018715772340,
+    "sha256": "6793b997a80d0b5cd51f1a06287e0862d1800f25803b6d3633776381353af5ce",
+    "size": 242
+   }
+  }
+ },
+ "watch_roots": [
+  "[turnstone]/operations/reviews/pi5-handover-2026-09-21-r2"
+ ]
+}

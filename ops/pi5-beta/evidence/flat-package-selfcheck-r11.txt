@@ -1,0 +1,201 @@
+# flat-package self-check - 2026-09-22T18:39:27+07:00
+# A flattened copy of this package, built from FREEZE-SHA256SUMS, so what is measured is the
+# package's own artifacts rather than the live authoring tree. Property under test: the
+# instruments run FROM THE PACKAGE, with no access to the tree they were authored in.
+# flattened copy: /tmp/pkg-flat-r11
+#
+# MODES ARE DELIBERATELY STRIPPED to 0444/0555 before the runs below, because that is what the
+# review guard's freeze does to a reviewer's copy. Round 11 (NB1) found two instruments that ran
+# here and not there; see D6 in REVIEW-BRIEF.md. This file is the one artifact that cannot also
+# sit inside the copy it describes (FREEZE-MANIFEST-NOTES.md).
+
+## modes and the candidate bytes in the flat copy
+-r--r--r-- verify.sh
+-r--r--r-- apply.sh
+-r--r--r-- rollback.sh
+-r--r--r-- camilladsp-js.js
+-r--r--r-- 10-audio-rt.conf
+-r--r--r-- verify-r10-frozen.sh
+-r--r--r-- camilladsp-js-r5-predecessor.js
+-r--r--r-- ssh
+-r--r--r-- devshim
+e66f32faee2b3593cd8ac1adb56bb1826cd1597bf3057d361639b403d791f537  verify.sh
+04238d6befc85c92d7a3f6faa9babe9bbda1f930df64ac25e92364a2ad4512e5  apply.sh
+9d0e7bb70265bf8c8bf494e0ad06c1b89e37e60c4f2e171d85bf8e1e3ea3d4b2  rollback.sh
+10236af890a92cb37b873bb5c7b10596c90e65e0d258baeb08474c3ec891b429  camilladsp-js.js
+3db49e30892f99fde79e03cfa854cc371fa457835c1366aa055b145536d3c958  10-audio-rt.conf
+d4e37d290b08dad83e20151f8523dff62eff4bb43d6ca6b487bcb4b14f3a6c95  verify-r10-frozen.sh
+746e38ff58218f69363949cc5a35b1b884e395f04afc9ffad296b23361f0af63  camilladsp-js-r5-predecessor.js
+
+## step-6 guard control, run inside the flat copy
+extracted the step-6 block from the candidate (36 lines); it is the repaired code
+
+== the repaired block: behaviour across every outcome that matters ==
+  PASS  S1 clean window (0 -> 0, CPU rising) (rc=0 as required: pass)
+  PASS  S1 clean window (0 -> 0, CPU rising): output contains 'underruns/overruns during the sample: 0'
+  PASS  S2 two NEW events during the window (rc=1 as required: fail)
+  PASS  S2 two NEW events during the window: output contains '2 new underrun/overrun event(s) during the sampling window'
+  PASS  S3 THE OLD DEFECT'S VALUE (two-line count) now INDETERMINATE, not a silent skip (rc=2 as required: indeterminate)
+  PASS  S3 THE OLD DEFECT'S VALUE (two-line count) now INDETERMINATE, not a silent skip: output contains 'cannot be judged'
+  PASS  S4 unreadable CPU tick count (rc=2 as required: indeterminate)
+  PASS  S4 unreadable CPU tick count: output contains 'cannot be judged'
+  PASS  S5 CPU tick count went backwards (rc=2 as required: indeterminate)
+  PASS  S5 CPU tick count went backwards: output contains 'went backwards'
+  PASS  S6 count went backwards (rc=2 as required: indeterminate)
+  PASS  S6 count went backwards: output contains 'went backwards'
+  PASS  S7 stream not running for the whole sample (rc=2 as required: indeterminate)
+  PASS  S7 stream not running for the whole sample: output contains 'sample is void'
+  PASS  S8 CPU hog (rc=1 as required: fail)
+  PASS  S8 CPU hog: output contains 'too high to call this non-monopolizing'
+
+== side by side: the SAME clean-window input against the r10-frozen block ==
+test-step6-underrun-guard.sh: line 144: 0
+0: syntax error in expression (error token is "0")
+  PASS  O1 r10 block, clean window: nothing is asserted (the comparison never runs) (rc=1 as required: nonzero)
+  PASS  O1 r10 block, clean window: nothing is asserted (the comparison never runs): output does not contain 'underruns/overruns during the sample: 0'
+  PASS  O1 r10 block, clean window: and no failure is reported either (rc=1 as required: nonzero)
+  PASS  O1 r10 block, clean window: and no failure is reported either: output does not contain 'VERIFY FAIL'
+      (r10 block reached its own end: 0)
+
+================================================================================
+  CONTROL ASSERTIONS: 20 passed, 0 failed
+================================================================================
+   exit: 0
+
+## upgrade-path harness, run inside the flat copy (NO_DEVICE_CHECK=1: no device access needed)
+== 0. preconditions (fixtures and pins) ==
+  pins OK; predecessor fixture: /tmp/pkg-flat-r11/camilladsp-js-r5-predecessor.js
+
+== C1. UPGRADE, success path ==
+  apply.sh rc=0
+  PASS  C1 rc=0
+  PASS  C1 upgrade branch taken (drop-in not rewritten)
+  PASS  C1 upgrade preflight accepted the existing reviewed drop-in
+  PASS  C1 deployed js == reviewed new bytes
+  PASS  C1 drop-in still the reviewed bytes
+  PASS  C1 drop-in inode/size/mtime UNCHANGED (asserted, never rewritten)
+  PASS  C1 ceiling 45 present after restart
+  PASS  C1 backup dir recorded in apply.sh shape
+  PASS  C1 anchor holds the predecessor bytes
+  PASS  C1 transaction record names the predecessor as js_sha256
+
+== C2. UPGRADE, failure AFTER the js write (restart fails once) ==
+  apply.sh rc=1
+  PASS  C2 non-zero exit (a failed upgrade must not report success)
+  PASS  C2 js RESTORED to the predecessor byte-exact
+  PASS  C2 DROP-IN RETAINED (exists)
+  PASS  C2 retained drop-in is still the reviewed bytes
+  PASS  C2 retained drop-in inode/size/mtime UNCHANGED
+  PASS  C2 ceiling 45 still present after the recovery restart
+  PASS  C2 trap reported the restore, not manual recovery
+  PASS  C2 trap did NOT print MANUAL RECOVERY REQUIRED
+
+== C3. UPGRADE, failure AT the js hash assertion (write succeeds, content wrong) ==
+  apply.sh rc=1
+  PASS  C3 non-zero exit
+  PASS  C3 the hash assertion is what failed
+  PASS  C3 js RESTORED to the predecessor byte-exact
+  PASS  C3 DROP-IN RETAINED (exists)
+  PASS  C3 retained drop-in inode/size/mtime UNCHANGED
+
+== C4. FRESH-mode control, success path (the other dispatch arm) ==
+  apply.sh rc=0
+  PASS  C4 rc=0
+  PASS  C4 fresh branch taken (drop-in installed)
+  PASS  C4 deployed js == reviewed new bytes
+  PASS  C4 drop-in installed at the reviewed bytes
+  PASS  C4 anchor+record name the PRISTINE baseline (mode dispatch, not a constant)
+
+== C5. FRESH-mode control: SAME injected failure must REMOVE the drop-in ==
+  apply.sh rc=1
+  PASS  C5 non-zero exit
+  PASS  C5 js restored to the pristine baseline
+  PASS  C5 DROP-IN REMOVED (the contrast that makes C2/C3 meaningful)
+  PASS  C5 ceiling 45 gone after the drop-in was removed
+
+== C6. ROLLBACK of an upgrade (anchor record drives the mode) ==
+  PASS  C6 precondition: upgrade applied cleanly
+  rollback.sh rc=0
+  PASS  C6 rc=0
+  PASS  C6 mode read as upgrade FROM THE ANCHOR RECORD
+  PASS  C6 js restored to the predecessor byte-exact
+  PASS  C6 drop-in RETAINED and still the reviewed bytes
+  PASS  C6 ceiling 45 asserted PRESENT
+  PASS  C6 the anchor is the one C6's apply created
+
+== C7. ROLLBACK of a fresh install (control: must REMOVE the drop-in) ==
+  PASS  C7 precondition: fresh install applied cleanly
+  PASS  C7 precondition: ceiling present before rollback
+  rollback.sh rc=0
+  PASS  C7 rc=0
+  PASS  C7 mode read as fresh from the anchor record
+  PASS  C7 js restored to the pristine baseline
+  PASS  C7 drop-in REMOVED
+  PASS  C7 ceiling asserted ABSENT
+
+== C9. UPGRADE with an UNWRITABLE target: the restore cannot land, so it must escalate ==
+   (models a device where the write primitive itself is broken; the model's sudo has no real
+    privilege boundary, which makes it a faithful stand-in for that condition)
+  apply.sh rc=4
+  PASS  C9 rc=4 — a mutation happened and the restore did NOT complete
+  PASS  C9 it says MANUAL RECOVERY REQUIRED rather than claiming success
+  PASS  C9 it does NOT claim the device is back to the pre-change state
+  PASS  C9 it still restarted the backend (not left with a dead audio service)
+  PASS  C9 the rollback anchor is still intact for the manual recovery
+  PASS  C9 the drop-in was still never touched
+
+== C8. guard: the real device was never touched ==
+  SKIP  device check disabled by NO_DEVICE_CHECK=1
+
+================================================================================
+  ASSERTIONS: 52 passed, 0 failed
+  sandbox: /tmp/rt-upgrade-harness.NObIbM (removed)
+================================================================================
+   exit: 0
+
+## the same harness's mutant control, run inside the flat copy
+== baseline arm: the UNMUTATED candidate must pass the harness ==
+  PASS  baseline (unmutated reviewed bytes) passes
+
+== M-A: rollback upgrade branch removes the drop-in (must be caught) ==
+mutate: rollback.sh rewritten (121 chars -> 88 chars)
+  PASS  m-a: mutation applied (rollback.sh 9d0e7bb70265 -> 7e467a5cf938)
+  PASS  m-a: harness rejected the mutant (rc=1)
+  PASS  m-a: failed on the expected assertion
+
+== M-B: apply upgrade branch rewrites the drop-in (must be caught) ==
+mutate: apply.sh rewritten (87 chars -> 302 chars)
+  PASS  m-b: mutation applied (apply.sh 04238d6befc8 -> a13a07c0bc97)
+  PASS  m-b: harness rejected the mutant (rc=1)
+  PASS  m-b: failed on the expected assertion
+
+  device guard (C8): EXERCISED — the device was reachable and asserted unchanged by the run.
+================================================================================
+  CONTROL ASSERTIONS: 7 passed, 0 failed
+================================================================================
+exit: 0
+
+## the fixture-resolution control, run inside the flat copy
+== arm A: a DECOY baseline in the earlier search location must be skipped, not used ==
+  PASS  A: the decoy really is not the pristine bytes
+  PASS  A: the harness ran to completion past its preconditions (decoy rejected)
+  PASS  A: it reported its pins resolved
+  PASS  A: 52/0 — the run is the expected NO_DEVICE_CHECK profile
+  ASSERTIONS: 52 passed, 0 failed
+
+== arm B: NO correct baseline anywhere -- it must stop loudly, not pick any file of the name ==
+  PASS  B: rc=2 (precondition failure, not a test result)
+  PASS  B: it names the baseline fixture as the problem
+  PASS  B: no assertions were run
+
+== arm C: a DECOY predecessor in the earlier search location must be skipped ==
+  PASS  C: the harness ran to completion (decoy rejected)
+  PASS  C: it skipped the decoy and resolved the correct bytes behind it (/tmp/rt-fixture-ctl.drEC2K/C/stage/fixtures/camilladsp-js-r5-predecessor.js)
+
+== arm D: the correct fixture WINS even when it sits at the earlier location ==
+  PASS  D: the earlier location is still searched (correct bytes there are accepted)
+
+================================================================================
+  CONTROL ASSERTIONS: 10 passed, 0 failed
+================================================================================
+exit: 0

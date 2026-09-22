@@ -1,0 +1,5 @@
+spawn 1  state=state: RUNNING   threads=9 ff=1 ts=8 ff_names=[camilladsp:45] ts_names=[flexi_logger-as,flexi_logger-fl,camilladsp,camilladsp,camilladsp,AlsaPlayback,FileCapture,AlsaPlayback]
+spawn 2  state=state: RUNNING   threads=11 ff=9 ts=2 ff_names=[camilladsp:45,camilladsp:45,camilladsp:45,camilladsp:45,AlsaPlayback:45,FileCapture:45,AlsaPlayback:45,camilladsp:45,camilladsp:45] ts_names=[flexi_logger-as,flexi_logger-fl]
+spawn 3  state=state: RUNNING   threads=11 ff=9 ts=2 ff_names=[camilladsp:45,camilladsp:45,camilladsp:45,camilladsp:45,AlsaPlayback:45,FileCapture:45,AlsaPlayback:45,camilladsp:45,camilladsp:45] ts_names=[flexi_logger-as,flexi_logger-fl]
+spawn 4  state=state: RUNNING   threads=11 ff=9 ts=2 ff_names=[camilladsp:45,camilladsp:45,camilladsp:45,camilladsp:45,AlsaPlayback:45,FileCapture:45,AlsaPlayback:45,camilladsp:45,camilladsp:45] ts_names=[flexi_logger-as,flexi_logger-fl]
+spawn 5  state=state: RUNNING   threads=11 ff=9 ts=2 ff_names=[camilladsp:45,camilladsp:45,camilladsp:45,camilladsp:45,AlsaPlayback:45,FileCapture:45,AlsaPlayback:45,camilladsp:45,camilladsp:45] ts_names=[flexi_logger-as,flexi_logger-fl]

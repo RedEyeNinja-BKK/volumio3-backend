@@ -1,0 +1,105 @@
+# Baseline evidence - I2S DAC control-plane state, BEFORE any remediation
+#
+# Captured with ops/pi5-beta/scripts/i2s-diag.sh on the device at the time shown.
+# SANITIZED for this public record: the device hostname is replaced with <device>
+# and user home paths with <home/<user>>. No other edit was made - every count,
+# hash and identifier below is as emitted by the instrument.
+#
+# Instrument sha256 at capture time: a05d92fb61e0d6e0e96eb0615cee7105610cef312ffa053aea253e193dd89a14
+
+# i2s-diag — I2S DAC control-plane snapshot
+# generated: 2026-09-19 16:47:03 +0700
+# host: <device>
+# output file: /home/<user>/before-snapshot.txt
+
+=== uptime / kernel ===
+ 16:47:03 up 36 min,  0 user,  load average: 1.34, 2.05, 1.95
+Linux <device> 6.12.75-v8+ #1949 SMP PREEMPT Fri Mar  6 11:35:31 GMT 2026 aarch64 GNU/Linux
+
+=== boot config — I2S-relevant lines ===
+16:dtoverlay=i-sabre-q2m
+19:dtoverlay=i-sabre-q2m
+-- sha256: 8f448dd300422b465b456616eb5870173538640d167c8330856a394247687ecd
+
+-- userconfig.txt --
+4:dtoverlay=vc4-kms-dsi-waveshare-panel,8_8_inch,rotation=90
+17:dtparam=audio=off
+18:dtoverlay=i2s-dac
+19:param=i2s_mclk=on
+33:dtoverlay=rpi-active-fan,temperature=60000,speed=180,temperature=70000,speed=255
+37:dtparam=spi=off
+38:dtparam=uart=off
+39:dtparam=i2c=on
+-- sha256: 02f8b9a56680a38820de9fbebe03d3fbe20039a7eed6a3ee9d5118ad13425f54
+
+=== ALSA cards ===
+ 0 [Loopback       ]: Loopback - Loopback
+                      Loopback 1
+ 1 [DAC            ]: I-Sabre_Q2M_DAC - I-Sabre Q2M DAC
+                      I-Sabre Q2M DAC
+ 7 [Dummy          ]: Dummy - Dummy
+                      Dummy 1
+
+card 0: Loopback [Loopback], device 0: Loopback PCM [Loopback PCM]
+card 0: Loopback [Loopback], device 1: Loopback PCM [Loopback PCM]
+card 1: DAC [I-Sabre Q2M DAC], device 0: I-Sabre Q2M DAC i-sabre-codec-dai-0 [I-Sabre Q2M DAC i-sabre-codec-dai-0]
+card 7: Dummy [Dummy], device 0: Dummy PCM [Dummy PCM]
+
+=== sound card present? ===
+card1 present; /proc/asound/card1:
+id
+pcm0p
+-- expected primary card name: DAC (sabre profile) or sndrpihifiberry (hifiberry-dac)
+
+=== I2C bus 1 — instantiated clients ===
+  1-0048 = i-sabre-codec
+  11-0014 = gt911
+  11-0045 = 8.8inch-panel
+  i2c-1 = Synopsys DesignWare I2C adapter
+  i2c-11 = Synopsys DesignWare I2C adapter
+-- codec driver dir:
+/sys/bus/i2c/drivers/i-sabre-codec-i2c
+
+=== runtime overlays (boot-firmware overlays do NOT appear here) ===
+No overlays loaded
+
+=== CODEC I2C HEALTH — the decisive measurement ===
+  total i-sabre I2C messages in dmesg : 110
+  (every one observed so far has been an error; a healthy boot has 0)
+
+  failures by register:
+    reg 0x01 : 1
+    reg 0x02 : 1
+    reg 0x10 : 32
+    reg 0x21 : 74
+    reg 0x22 : 2
+
+  chip identification lines (FFFFFF87 == -121, i.e. a FAILED read):
+[   11.801528] snd-rpi-i-sabre-q2m soc@107c000000:sound: Audiophonics Device ID : FFFFFF87
+[   11.801656] snd-rpi-i-sabre-q2m soc@107c000000:sound: Audiophonics API revision : FFFFFF87
+
+=== Volumio audio configuration ===
+  outputdevicename = 'Audiophonics I-Sabre ES9028Q2M'
+  outputdevicecardname = 'DAC'
+  outputdevice = '1'
+  mixer_type = 'None'
+  mixer = ''
+  resampling = False
+  resampling_target_samplerate = '96000'
+  resampling_quality = 'very high'
+
+=== FusionDSP / CamillaDSP state ===
+  CamillaDSP: RUNNING (pid 9646 )
+  active   samplerate: 192000
+  config sha256: f586a1a84126d6a39ba2843a1bfca567b1f412ee56bad38528daf3b2be53756d
+  last FIFO stream params (rate,format,channels,width): 192000,S32_LE,2,32
+
+=== current hardware parameters ===
+-- /proc/asound/card1/pcm0p/sub0/hw_params
+   closed
+-- /proc/asound/card1/pcm0p/sub0/status
+   closed
+
+=== END ===
+Snapshot written to: /home/<user>/before-snapshot.txt
+Sanitize before publishing: it contains the hostname and local paths.
