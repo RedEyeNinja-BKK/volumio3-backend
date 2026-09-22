@@ -340,7 +340,7 @@ Verification matrix, after a core reload (plugin JS is re-read on restart). **me
 CamillaDSP measured during test C: state `Running`, capture peak −20.2 dB, playback peak −26.7 dB,
 clipped samples 0, stop reason `None`.
 
-Rollback: originals are preserved in `/home/volumio/pi5-fix-backup-20260921-021521/`
+Rollback: originals are preserved in `<DEVICE_HOME>/pi5-fix-backup-20260921-021521/`
 (`spop-index.v1.js`, `mpd-index.js.orig`, plus the pre-existing `asound.conf`, `spop-config.yml.tmpl`,
 `peppy-config.json`, `MANIFEST.sha256`). Reload lever: read the authoritative pid from
 `systemctl show volumio -p MainPID --value` and `kill -TERM` it; the unit is `Restart=always`.
@@ -512,7 +512,7 @@ before applying. v3 patcher: `ops/pi5-beta/patches/2026-09-21-handover-v3-review
 | A | `/data/plugins/music_service/spop/index.js` | `cd256f141c2a…` | `spop-index.v2.js` (the rejected v2), `spop-index.v1.js`, `spop-index.js` (original) |
 | B | `/volumio/app/plugins/music_service/mpd/index.js` | `4377a8f703c3…` | `mpd-index.v2.js`, `mpd-index.js.orig` |
 
-All five rollback copies are in `/home/volumio/pi5-fix-backup-20260921-021521/`. The core was reloaded
+All five rollback copies are in `<DEVICE_HOME>/pi5-fix-backup-20260921-021521/`. The core was reloaded
 once (MainPID 13654 → 28330, `Restart=always`); nothing else on the device was modified.
 
 ### 12.4 Re-verification — what passed, and the one path that cannot be verified from here
