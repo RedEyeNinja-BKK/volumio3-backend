@@ -1,0 +1,25 @@
+# upgrade-path harness MUTANT CONTROL - LIVE TREE - 2026-09-22T18:37:17+07:00
+# Remediated for review r11 NB1: no executable-bit dependency (the review guard's freeze writes
+# every artifact mode 0444), and the device guard is auto-skipped with a loud disclosure when
+# this host cannot reach the device.
+
+== baseline arm: the UNMUTATED candidate must pass the harness ==
+  PASS  baseline (unmutated reviewed bytes) passes
+
+== M-A: rollback upgrade branch removes the drop-in (must be caught) ==
+mutate: rollback.sh rewritten (121 chars -> 88 chars)
+  PASS  m-a: mutation applied (rollback.sh 9d0e7bb70265 -> 7e467a5cf938)
+  PASS  m-a: harness rejected the mutant (rc=1)
+  PASS  m-a: failed on the expected assertion
+
+== M-B: apply upgrade branch rewrites the drop-in (must be caught) ==
+mutate: apply.sh rewritten (87 chars -> 302 chars)
+  PASS  m-b: mutation applied (apply.sh 04238d6befc8 -> a13a07c0bc97)
+  PASS  m-b: harness rejected the mutant (rc=1)
+  PASS  m-b: failed on the expected assertion
+
+  device guard (C8): EXERCISED — the device was reachable and asserted unchanged by the run.
+================================================================================
+  CONTROL ASSERTIONS: 7 passed, 0 failed
+================================================================================
+exit: 0

@@ -1,0 +1,32 @@
+# apply.sh - pi5-beta RT scheduling r10 (chrt -a reorder) - 2026-09-22T17:35:41+07:00
+# device: volumio-pi5-beta | starting state: js 746e38ff (r5-approved) + reviewed drop-in 3db49e30
+
+== candidate bytes vs the frozen review subject ==
+camilladsp-js.js  10236af890a92cb37b873bb5c7b10596c90e65e0d258baeb08474c3ec891b429
+10-audio-rt.conf  3db49e30892f99fde79e03cfa854cc371fa457835c1366aa055b145536d3c958
+== 0. preflight (fail closed) ==
+mode: upgrade   (predecessor 746e38ff58218f69363949cc5a35b1b884e395f04afc9ffad296b23361f0af63)
+upgrade preflight: drop-in present and still the reviewed 3db49e30892f99fde79e03cfa854cc371fa457835c1366aa055b145536d3c958
+preflight OK: idle device, upgrade-mode predecessor hash matches, target owner/mode volumio:volumio 644
+== 1. rollback anchor ==
+anchor verified: 746e38ff58218f69363949cc5a35b1b884e395f04afc9ffad296b23361f0af63
+transaction record verified
+== 2. install LimitRTPRIO drop-in (permission only) ==
+   upgrade mode: not rewritten, and re-asserted below
+drop-in in place, sha256 verified: 3db49e30892f99fde79e03cfa854cc371fa457835c1366aa055b145536d3c958
+== 3. install patched spawn site ==
+deployed js sha256 verified: 10236af890a92cb37b873bb5c7b10596c90e65e0d258baeb08474c3ec891b429
+owner/mode preserved: volumio:volumio 644 (== pre-change)
+== 4. restart backend so the grant reaches any DSP it spawns ==
+volumio.service is active
+== 5. assert by read-back ==
+backend MainPID 21917 :: Max realtime priority     45                   45                   
+backend carries the 45 ceiling: asserted
+
+APPLIED and asserted (mode=upgrade): candidate bytes are the reviewed bytes, the backend
+carries the 45 ceiling, and volumio.service is active.
+NOT yet asserted here: the DSP's own scheduling policy — that needs a spawn and is
+asserted by verify.sh after the next playback, not claimed by this script.
+Rollback: [workstream]/stage/candidate/rollback.sh   (anchor: /home/volumio/rt-backups-20260922-173541)
+
+# apply.sh EXIT CODE: 0

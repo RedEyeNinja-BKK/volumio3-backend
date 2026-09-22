@@ -1,175 +1,293 @@
 # 2026-09-22 — Real-time scheduling for the CamillaDSP backend (and a governor A/B)
 
-**Outcome: the `camilladsp` backend now actually gets real-time priority, and the CPU
-governor is left on `conservative` (measured, not assumed).** Two changes were authorised
-as one task — (a) an A/B of the CPU governor, (b) a real-time priority grant for the
-audio DSP — and were executed in that order.
+> **Revision 2 of this record** (supersedes the version first written on deployment day).
+> Sanitised: no credentials, no personal paths, no internal addresses, no media identifiers.
+> Host-side paths are shown as `[workstream]/…`.
 
-Scope note: this is a **scheduling-authority** change, not a latency-tuning change. Nothing
-here alters resampling, buffers, or the audio path; the device still does no resampling.
+**Outcome: the `camilladsp` backend now actually gets real-time priority on every thread it
+creates, and the CPU governor is left on `conservative` (measured, not assumed).** Two changes
+were authorised as one task — (a) an A/B of the CPU governor, (b) a real-time priority grant for
+the audio DSP — and were executed in that order.
+
+Scope note: this is a **scheduling-authority** change, not a latency-tuning change. Nothing here
+alters resampling, buffers, or the audio path; the device still does no resampling.
+
+| | file | sha256 (deployed) |
+|---|---|---|
+| permission | `/etc/systemd/system/volumio.service.d/10-audio-rt.conf` | `3db49e30892f99fde79e03cfa854cc371fa457835c1366aa055b145536d3c958` |
+| behaviour | `/data/plugins/audio_interface/fusiondsp/camilladsp-js.js` | `10236af890a92cb37b873bb5c7b10596c90e65e0d258baeb08474c3ec891b429` |
 
 ---
 
 ## (a) CPU governor — A/B/A, verdict: **keep `conservative`**
 
-Tested in a single gated 44.1 kHz stream, A→B→A, with the governor switched between arms
-and the tick/transition counters read from the kernel.
+Tested atomically inside **one** continuous 44.1 kHz stream (A→B→A), with the governor switched
+between arms and the tick/transition counters read from the kernel. A first attempt that ran the
+arms in separate sessions collected an idle machine for two of its windows; those windows were
+recorded as **VOID** and discarded rather than reported.
 
 | arm | governor | observed clock | transitions | underruns |
 |---|---|---|---|---|
-| A | `conservative` | held 2800 MHz | **0** across 3518/3518 ticks | 0 |
-| B | `schedutil` | dipped below 2800 MHz | **4082** | 0 |
-| A′ | `conservative` | held 2800 MHz | 0 | 0 |
+| A | `conservative` | held 2800 MHz, 3518/3518 ticks | **0** | 0 |
+| B | `schedutil` | dipped to 2.5–2.6 GHz for ~46 % of the window | **4082** | 0 |
+| A′ | `conservative` | held 2800 MHz, 3507/3507 ticks | 0 | 0 |
 
-`schedutil` produced four thousand governor transitions in the same window where
-`conservative` produced none, with no compensating benefit. **`conservative` was already
-the value on the device and is left there.** Volumio's own Pi-5 carve-out in
-`/usr/bin/volumio_cpu_tweak` was not touched.
+`schedutil` produced over four thousand governor transitions in 35 s where `conservative` produced
+none, while pulling the clock *down* for half the window — it reduces DSP headroom as well as
+adding churn. **`conservative` was already the value on the device and is left there.**
 
-Not tested in this section: any ≥ 352.8 kHz arm. This device has a separate, sporadic I²S wedge
-under investigation, and that measurement was expected to need a cold start. It was subsequently
-run **without** one — see the real-time section below — because the I²S path was clean at the time
-(no errors since boot), so there was no wedge to clear.
+The premise being tested was my own inference that `conservative` costs latency: a long-run idle
+`time_in_state` showed the device sitting at the 1500 MHz floor 96.6 % of wall-clock, and the
+8 ms poll with a ~140 MHz step implies a slow-looking ramp. Under real playback that inference is
+simply wrong — the clock is pinned at the ceiling. The floor-clinging distribution is an **idle**
+phenomenon.
 
----
+Not covered by this A/B: the device's ≥ 352.8 kHz arm (see the real-time section — that was
+measured in a separate window).
 
 ## (b) Real-time priority for the CamillaDSP backend
 
 ### What was wrong
 
-The audio DSP ran at normal scheduling priority. Under load it competes for CPU with
-everything else on the box, including a kiosk Chromium and the Node backend, and the
-failure mode of losing that competition is an audio dropout.
+The audio DSP ran at normal scheduling priority. Under load it competes for CPU with everything
+else on the box, including a kiosk browser and the Node backend, and the failure mode of losing
+that competition is an audio dropout.
+
+Investigating where the priority should come from turned up an adjacent fact about the platform:
+Volumio's own boot-time CPU script (`/usr/bin/volumio_cpu_tweak`) intends to raise `mpd` to FIFO 35
+and pin its affinity, but it resolves the mpd pid at a point where mpd is not yet running, so both
+of its scheduling calls silently degrade into queries that exit 0. Measured on the device: `mpd`
+runs `SCHED_OTHER`, and **the one process in this audio chain that actually holds a deadline —
+`camilladsp` — received no real-time policy and no affinity from the platform at all.**
 
 ### What was changed
 
-Two files, both now on the device:
-
 | File | Role |
 |---|---|
-| `/etc/systemd/system/volumio.service.d/10-audio-rt.conf` | grants the unit a real-time priority **ceiling** of 45 |
-| `/data/plugins/audio_interface/fusiondsp/camilladsp-js.js` | makes the DSP obtain priority up to that ceiling |
+| `10-audio-rt.conf` | grants the service a real-time priority **ceiling** of 45 |
+| `camilladsp-js.js` | makes the DSP obtain priority up to that ceiling |
 
-The drop-in is deliberately a **ceiling, not a pin**: it says what the unit *may* use,
-and the process decides per-thread. That follows the upstream design — the deployed
-`camilladsp` 4.1.3 bundles the `audio_thread_priority` crate and contains its own
-promote/demote paths (`"Capture thread has real-time priority."`,
-`"…could not get real time priority, error:"`, `"…returned to normal priority."`). The
+The drop-in is deliberately a **ceiling, not a pin**: it says what the unit *may* use, and the
+process decides per-thread. That follows the upstream design — the deployed `camilladsp` 4.1.3
+bundles the `audio_thread_priority` crate and contains its own promote/demote paths. The
 unit-level ceiling is what makes that existing mechanism able to succeed.
 
-**Why 45:** above mpd's two FIFO-40 device threads (the consumer must be able to preempt
-the producer), and below every kernel thread measured on this board — `migration/*` 99,
-`ntpd` 99, `watchdogd` 50, `irq/*` 50, `card0-crtc0` 50.
+**Why 45:** above mpd's two FIFO-40 device threads (the consumer must be able to preempt the
+producer), and below every kernel thread measured on this board — `migration/*` 99, `ntpd` 99,
+`watchdogd` 50, `irq/*` 50, `card0-crtc0` 50.
 
-### Measured behaviour
+### The defect that the first deploy had — and that the current one fixes
 
-* The DSP **main thread is FIFO 45** in every measurement taken.
-* **Worker coverage is NOT uniform, and the cause is identified.** In 4 of 5 readings every
-  thread of the running chain was at FIFO 45, including `AlsaPlayback` and `FileCapture` —
-  created *after* the grant, inheriting the policy from the granted main thread. In the fifth
-  reading the workers were `SCHED_OTHER` while the main thread was FIFO 45, and they stayed
-  that way for the whole stream.
-  The grant is issued as `chrt -f -p 45 -a <pid>`. On util-linux 2.38.1 the `-a` (all-tasks)
-  flag is honoured **only when it precedes `-p`**; in the position above it is accepted and
-  silently ignored — `rc=0`, no error, no warning. The call therefore promotes the main thread
-  and nothing else, and every worker is covered *only* by inheritance from it. A worker that
-  already existed when the helper ran is never promoted, for the life of that process. Whether
-  it is covered is a race against the helper's arrival — the same item produced both outcomes
-  across successive spawns, so it is not a property of the rate. Reported as observed; the
-  reorder that removes the race is identified but not deployed.
-* **The benefit claimed is small and honest.** This is absence-of-failure at normal load,
-  not the removal of a reproduced dropout. The pre-change log contains 11 underrun/overrun
-  events, all from a single earlier date; none recurred across the sustained-load window of
-  this session (count unchanged throughout).
+`-a`/`--all-tasks` in util-linux is **position-sensitive: it must precede `-p`.** Written the other
+way round the flag is *accepted and silently ignored* — `rc=0`, no error, no warning:
+
+```sh
+chrt -f -p 45 -a <pid>      # -a inert: promotes the main thread and nothing else
+chrt -a -f -p 45 <pid>      # correct: every thread of the process
+```
+
+The first deployment shipped the inert form. Measured consequence: the DSP's main thread was
+FIFO 45 in every reading, but in **4 of 5 successive spawns** the audio workers (`AlsaPlayback`,
+`FileCapture`) were left on `SCHED_OTHER` — they are created *after* the grant and were covered
+only by inheritance from the main thread, which is a race against when the grant lands. The same
+item produced both outcomes across successive respawns, so it was not a property of the sample
+rate.
+
+The current deployment reorders the flags. This is a one-line change plus the comment explaining
+why the order may not be "tidied", and it is what the measured results below reflect.
+
+### Measured behaviour after the fix
+
+- **Every thread of the process is FIFO 45**, including `AlsaPlayback` and `FileCapture` — asserted,
+  not inferred, in 10/10 threads of a live stream.
+- Nothing on the box sits above 45 except kernel threads; nothing in the DSP exceeds 45.
+- No newly real-time thread is attributable to this grant other than `camilladsp` itself.
+- CPU cost is negligible: the DSP used **49–53 jiffies over 35 s ≈ 1.4 % of one core** at 44.1 kHz,
+  and **0 jiffies when idle**. An idle RT process cannot starve anything, which matters for the
+  attribution in the post-change section below.
+- The ≥ 352.8 kHz arm was run: a DSD source, which this chain feeds to the DAC as 352.8 kHz PCM.
+  Over a 30 s gated window the main thread held FIFO 45, nothing exceeded 45, and the
+  underrun/overrun delta was 0; a 44.1 kHz control in the same session was also 0. The DSP used
+  ~9 % of one core at 352.8 kHz against ~1 % at 44.1 kHz.
 
 ### Rollback
 
-An anchor was taken before the change and is on the device at
-`/home/volumio/rt-backups-20260922-143128/`, holding the original
-`camilladsp-js.js` and a metadata file with the pre-change hashes. Restore is a file copy
-plus a service restart, via the documented script.
+An anchor is on the device at `/home/volumio/rt-backups-20260922-173541/`, holding the original
+`camilladsp-js.js` and a metadata file with the pre-change owner, mode and hash. Restore is a file
+copy plus a service restart, driven by the documented script; the transaction record is verified
+before the anchor is relied on.
 
 ---
 
 ## How this was verified
 
-There is an acceptance harness (host-side; **not** deployed to the device) that checks the
-grant by reading it back from the live system — unit ceiling, the process's live scheduler
-attributes, and a set-difference over real-time threads that attributes anything new to a
-cgroup and refuses to pass when it cannot read that attribution. Each snapshot row also
-carries the process's start time, read at the same moment as the snapshot, and the check
-re-reads it before attributing anything: a recycled process id would otherwise be judged on a
-different process's cgroup and priority.
+There is an acceptance harness (host-side; **not** deployed to the device) that checks the grant by
+reading it back from the live system — unit ceiling, the process's live scheduler attributes, and a
+set-difference over real-time threads that attributes anything new to a cgroup and refuses to pass
+when it cannot read that attribution. Each snapshot row also carries the process's start time, read
+at the same moment as the snapshot, and the check re-reads it before attributing anything: a
+recycled process id would otherwise be judged on a different process's cgroup and priority.
 
-The harness was itself reviewed independently, and **that review is the interesting part of
-this record**: four rounds were needed before it was trustworthy, because a verification
-tool that is wrong is worse than no tool.
+The harness was itself reviewed independently, and **that review is the interesting part of this
+record**: a verification tool that is wrong is worse than no tool.
 
-| round | verdict | what it caught |
+| round | reviewer verdict | what it caught |
 |---|---|---|
 | r4 | FAIL | stale callback path |
-| r5 | APPROVE | — (the deployed files were approved here) |
+| r5 | APPROVE | the first deployed files were approved here |
 | r6 | 2 blocking | freshness check truncated process start to whole seconds, so a pre-change process in the same second passed; cgroup attribution failed **open** |
-| r7 | 1 blocking | the review brief cited evidence that was not inside the frozen review package, so claims could not be checked against frozen bytes |
-| r8 | 3 blocking | the evidence chain was still not checkable from the frozen package; a byte-identity claim had no approval record behind it inside the package; and a process-id **reuse** race — the verifier read a process's cgroup and priority after taking its snapshot, so a recycled pid would be judged on a different process's state |
-| r9 | see the receipt | final round: every r8 finding answered, the package made self-verifying, and the reuse race closed by binding every snapshot row to a process identity read at the same moment |
+| r7 | 1 blocking | the brief cited evidence that was not inside the frozen review package, so claims could not be checked against frozen bytes |
+| r8 | 3 blocking | evidence chain still not checkable from the frozen package; a byte-identity claim had no approval record behind it; and a process-id **reuse** race |
+| r9 | final round | every r8 finding answered, package made self-verifying, reuse race closed by binding each snapshot row to an identity read at the same moment |
+| r10 | deployed-bytes round | covers the currently deployed artifact |
+| r11 | APPROVE-WITH-FINDINGS | one actionable finding on the harness controls (see below) |
+| r12 | APPROVE-WITH-FINDINGS, **no blocking** | confirmed the r11 finding fixed, and re-audited the deployables |
 
-Notable corrections made along the way, recorded here because they generalise:
+The review package is deliberately made **self-verifying**: it ships a checksum manifest keyed on
+file names that is independent of the staging layout, and a small read-only script that checks every
+listed file is present, unmodified, and unaccompanied by anything unlisted. The reviewer runs that
+script **inside the frozen copy**, not against the authoring tree — a distinction that cost one
+whole abandoned review package before it was learned.
 
-* **A reviewer-suggested fix that was a no-op.** r6 suggested comparing timestamps in tick
-  units to avoid the truncation. That transform is algebraically identical to the truncated
-  form, so it fixes nothing. The real fix was to compare against an exact sub-second install
-  instant, and to answer **INDETERMINATE** rather than PASS for the ambiguous window.
-* **A control that proved nothing.** One control arm attempted to synthesise a real-time
-  process that then vanished; it did not fire in an early round, so the branch it targeted was
-  covered only by fixtures. The r8 identity re-check made that path reachable on the device, and
-  the arm now fires as intended — an accidental but genuine gain from fixing the reuse race.
-* **A probe with no positive control.** An early reading of the DSP binary as "contains no
-  scheduler symbols" was void — the tool output never demonstrated it could find anything at
-  all. Re-run with a known-present control, it lists 417 symbols and lacks
-  `pthread_create`: the DSP does not create threads directly, which is a real (and different)
-  finding.
-* **Evidence that had quietly gone stale.** One harness's default working directory was not
-  updated when the staging layout changed, so it silently found nothing and reported a mass
-  failure for the wrong reason — and the evidence file shipped from an older run still named a
-  build that no longer existed. Both were caught while answering the review, and the run was
-  redone against the deployed bytes.
+### The verifier's own fail-open defect — found after deployment, repaired, re-reviewed
 
-Reviewer briefs, receipts and the raw evidence files are retained in the operational tree. The
-review package is deliberately made **self-verifying**: it ships a checksum manifest keyed on file
-names that is independent of the staging layout, plus a small read-only script that checks every
-listed file is present, unmodified, and unaccompanied by anything unlisted.
+The most valuable single finding of the day came from re-running the verifier *on the device* after
+deploying. It printed a PASS and, underneath, two shell arithmetic errors. They were not noise:
+
+```sh
+u1="$(grep -ciE 'underrun|overrun' $LOG 2>/dev/null || echo 0)"
+[ "$(( u2 - u1 ))" -eq 0 ] || fail "..."
+```
+
+`grep -c` prints its count **and exits 1** when the count is zero, so `|| echo 0` appended a
+*second* line. A two-line value inside an arithmetic expansion is a syntax error, which aborts the
+whole command — **including its own `|| fail` guard** — and at top level the script then continued,
+printed `VERIFY COMPLETE`, and exited 0.
+
+So the guard fired exactly when the count was 0, i.e. **on the good result**, and the observable
+outcome was a silent pass. It had never been seen because the log had always carried 11 matching
+lines from earlier sessions, which made the arithmetic work.
+
+Repaired: `|| true` (which keeps grep's own single-line `0`), plus the file's existing numeric
+validation convention, so a malformed or backwards reading is now **INDETERMINATE** rather than a
+silently-resolved default. Scope of the repair: exactly **one hunk** at the sustained-load section;
+the first 442 lines are byte-identical to the previously frozen verifier. Re-measured on the device
+afterwards: `0 -> 0`, asserted, no arithmetic errors, exit 0.
+
+The round-10 receipt is therefore **not citable for the verifier** — its window closed before this
+repair. It remains citable for the deployed artifact.
+
+### Instrument defects found and fixed the same day
+
+A pattern worth naming: **all three of these were in my own tooling, and every one of them was found
+by running the instrument rather than reading it.**
+
+* **Clock-driven test arms.** Two device-side test arms injected their perturbation on a fixed
+  13 s delay tuned against an earlier, slower verifier. A later consolidation made the verifier
+  faster, so on re-run the delay landed *after* the final snapshot: one arm reported a wrong result,
+  and the other — which expects success — reported a **pass having exercised nothing**. Both are now
+  **marker-driven**: they wait for the specific line the verifier prints immediately after taking its
+  baseline, and a missing marker is reported as UNEXPECTED rather than as a result. The
+  pass-expecting arm additionally asserts that its target branch actually ran.
+* **A fixture search that accepted a file by name.** The harness took the first *existing* candidate
+  path, so a stray file of the same name could have been anchored against while the harness reported
+  its preconditions satisfied. Every candidate is now checked against the expected hash and skipped
+  unless it matches, with a standalone negative control covering four resolution arms (10/10).
+* **An accidental dependency on the executable bit.** The guard's freeze writes every reviewed
+  artifact mode `0444`. The author's own copy had been made with `cp -p`, preserving `0755`, so the
+  package ran for the author and not for the reviewer. Now: `-f` rather than `-x` preconditions,
+  invocation as `bash <script>`, and a permission repair on any scratch copy that will be mutated.
+
+## Post-change observation: a Spotify playback failure, attributed upstream
+
+Shortly after deployment the operator reported a specific symptom: start a local DSD track, then
+start a Spotify track from the same UI — silence; clicking the same Spotify track a second time
+played it. Given a change to the audio scheduler had landed an hour earlier, this was treated as a
+possible regression and investigated to attribution rather than waved away.
+
+**It is not attributable to this change.** go-librespot's own log at the moment of the silence:
+
+```
+level=error msg="failed handling request play"
+  error="failed loading context: ... failed creating stream for <track>:
+  failed resolving track storage: failed reading response body:
+  stream error: stream ID 9; INTERNAL_ERROR; received from peer"
+```
+
+That is Spotify's server aborting the HTTP/2 stream while the client was fetching the track's audio
+payload — it occurs **before** any local audio device, FIFO or DSP interaction. The plugin surfaced
+it as an HTTP 500 from the local playback API and then did nothing; the retry two seconds later
+succeeded with identical parameters, which is the signature of a probabilistic remote failure rather
+than a deterministic local defect.
+
+Corroborating evidence, all measured:
+
+* The error appears **once** in the entire journal, which spans 21 hours *before* the change as well
+  as after.
+* The device has a documented, **pre-existing** background of Spotify connectivity failures — seven
+  clusters of Websocket/access-point errors between the previous evening and the change, including
+  two dial failures to a Spotify access point. The stream abort is the same family.
+* Four `Too many requests` warnings from the Spotify Web API two seconds before the failure (the
+  plugin had just fetched a long playlist page and was throttled), which is a plausible aggravating
+  factor on the same request.
+* Local scheduling is **excluded as a mechanism**: the failure string originates inside
+  go-librespot's HTTP/2 client; go-librespot runs `SCHED_OTHER` and is unaffected by the DSP's
+  policy; and an idle DSP consumes 0 CPU ticks, so it cannot starve another process.
+* It is **not** the known two-writer audio-path defect either: only one player was active, and the
+  DSP had already been torn down cleanly (`exit code 0`) before the Spotify request.
+
+Residual uncertainty, stated: the deployment does restart the core service, and therefore restarts
+the Spotify daemon, so a freshly-established connection was in play. The failure shape is remote-side
+and the immediate retry succeeded, so this is recorded as a coincidence in time rather than a
+mechanism — but a single occurrence cannot establish a rate, and recurrence would be the thing to
+measure before calling the class closed.
+
+The actionable local improvement here is not in the scheduler: the plugin treats a failed playback
+request as silence, with no user-visible error and no single retry. One retry would have made the
+first click work. That is a plugin-side change, is not part of this revision, and is not made here.
 
 ---
 
 ## Residual uncertainty, stated plainly
 
-1. **Worker-thread coverage is generation-dependent, and the cause is a defect rather than
-   something inside the DSP.** One in five readings left the audio workers at normal priority
-   after a respawn, for the whole stream. The *timing* is a race; the *mechanism* is the inert
-   `-a` described above, which makes coverage depend on whether the helper lands before or after
-   the DSP creates its worker threads. Not remediated: an argument reorder is identified, needs
-   its own review, and is not deployed.
-2. **The ≥ 352.8 kHz / DSD arm has now been run** — a DSD256 source, which this chain feeds to
-   the DAC as 352.8 kHz PCM. Over a 30 s window the gate stayed `RUNNING`, the main thread held
-   FIFO 45, nothing in the DSP exceeded 45, and the underrun/overrun delta was 0; a 44.1 kHz
-   control in the same session was also 0. The DSP used 9% of one core at 352.8 kHz against 1%
-   at 44.1 kHz.
-3. **The benefit is measured as absence-of-failure**, on one device, at normal load. Nothing
-   here is a claim about dropouts under conditions this session did not reproduce.
-4. **The verifier is an endpoint snapshot, and it is narrow on purpose.** It compares the set of
-   real-time threads before playback with the set at the end of the window; a thread that appears
-   and disappears entirely inside that window would not be seen, and the checks say so rather than
-   implying continuous monitoring. It is a deliberately conservative, system-wide regression alarm:
-   an unrelated process that newly becomes real-time also fails it, even though such a process
-   plainly did not get its priority from this change.
+1. **The benefit is measured as absence-of-failure**, on one device, at normal load. Nothing here is
+   a claim about dropouts under conditions this session did not reproduce. There were zero
+   underrun/overrun events across every gated window measured, and the pre-existing events in the log
+   did not recur — but that is a negative result, not a demonstrated drop-out fix.
+2. **The verifier is an endpoint snapshot, and it is narrow on purpose.** It compares the set of
+   real-time threads before playback with the set at the end of the window; a thread that appears and
+   disappears entirely *inside* that window would not be seen. The script states this limitation in
+   its own output rather than implying continuous monitoring — so the property it asserts is the
+   two-snapshot endpoint property, and it does not claim continuous absence.
+3. **The regression alarm is system-wide, not targeted.** An unrelated process that newly becomes
+   real-time also fails the check, even though such a process plainly did not get its priority from
+   this change. That is deliberate (a wider net is safer for a regression alarm) and it is why a
+   failure has to be attributed rather than assumed.
+4. **Volumio's own `mpd` scheduling grant remains inert.** The platform's boot script still fails to
+   promote mpd or set its affinity, and its scheduling calls still degrade silently to queries. That
+   is a separate, upstream-shaped change to an OS file; it is not made here.
+5. **The ≥ 352.8 kHz arm still carries an asterisk.** It passed, and the DSP cost scales as expected,
+   but this device has an open, intermittent hardware-path wedge associated with rate changes that
+   only a cold start clears; that is unrelated to scheduling and remains under separate
+   investigation.
+
+## Reviewer briefs, receipts and evidence
+
+Reviewer briefs, review receipts, frozen review packages and raw evidence files are retained in the
+operational tree. Two process facts are recorded with them because they are the reason the evidence
+is trustworthy: **a review receipt is citable only when its window closed clean**, and several early
+rounds have receipts that read INVALID for that reason — the reviewer's findings in those rounds are
+useful history, but the rounds themselves cannot be cited. Each frozen package is accompanied by the
+checksum manifest described above.
 
 ## Standing constraints honoured
 
-* Control plane only through the documented SSH-carried transport; the plugin HTTP
-  endpoints and `callMethod` were never used.
-* The DSP's input FIFO was never written to by hand — it has two writers and a third would
-  be a defect.
-* Only the passwordless primitives already granted to the maintenance account were used;
-  no new privilege was requested or created for this work.
+* Control plane only through the documented SSH-carried transport; the plugin HTTP endpoints and
+  `callMethod` were never used.
+* The DSP's input FIFO was never written to by hand — it has two writers and a third would be a
+  defect.
+* Only the passwordless primitives already granted to the maintenance account were used; no new
+  privilege was requested or created for this work.
+* Every runtime change was read back from the system after being written; every test arm left the
+  device as found (stopped, gate closed, governor unchanged, playback queue intact).
 * No media identifiers and no credentials appear in this record or its attachments.

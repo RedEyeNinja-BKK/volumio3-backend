@@ -1,0 +1,35 @@
+# step-6 underrun-guard control - LIVE TREE - 2026-09-22T18:10:29+07:00
+
+extracted the step-6 block from the candidate (36 lines); it is the repaired code
+
+== the repaired block: behaviour across every outcome that matters ==
+  PASS  S1 clean window (0 -> 0, CPU rising) (rc=0 as required: pass)
+  PASS  S1 clean window (0 -> 0, CPU rising): output contains 'underruns/overruns during the sample: 0'
+  PASS  S2 two NEW events during the window (rc=1 as required: fail)
+  PASS  S2 two NEW events during the window: output contains '2 new underrun/overrun event(s) during the sampling window'
+  PASS  S3 THE OLD DEFECT'S VALUE (two-line count) now INDETERMINATE, not a silent skip (rc=2 as required: indeterminate)
+  PASS  S3 THE OLD DEFECT'S VALUE (two-line count) now INDETERMINATE, not a silent skip: output contains 'cannot be judged'
+  PASS  S4 unreadable CPU tick count (rc=2 as required: indeterminate)
+  PASS  S4 unreadable CPU tick count: output contains 'cannot be judged'
+  PASS  S5 CPU tick count went backwards (rc=2 as required: indeterminate)
+  PASS  S5 CPU tick count went backwards: output contains 'went backwards'
+  PASS  S6 count went backwards (rc=2 as required: indeterminate)
+  PASS  S6 count went backwards: output contains 'went backwards'
+  PASS  S7 stream not running for the whole sample (rc=2 as required: indeterminate)
+  PASS  S7 stream not running for the whole sample: output contains 'sample is void'
+  PASS  S8 CPU hog (rc=1 as required: fail)
+  PASS  S8 CPU hog: output contains 'too high to call this non-monopolizing'
+
+== side by side: the SAME clean-window input against the r10-frozen block ==
+test-step6-underrun-guard.sh: line 144: 0
+0: syntax error in expression (error token is "0")
+  PASS  O1 r10 block, clean window: nothing is asserted (the comparison never runs) (rc=1 as required: nonzero)
+  PASS  O1 r10 block, clean window: nothing is asserted (the comparison never runs): output does not contain 'underruns/overruns during the sample: 0'
+  PASS  O1 r10 block, clean window: and no failure is reported either (rc=1 as required: nonzero)
+  PASS  O1 r10 block, clean window: and no failure is reported either: output does not contain 'VERIFY FAIL'
+      (r10 block reached its own end: 0)
+
+================================================================================
+  CONTROL ASSERTIONS: 20 passed, 0 failed
+================================================================================
+exit: 0

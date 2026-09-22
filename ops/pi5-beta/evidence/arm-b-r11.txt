@@ -1,0 +1,92 @@
+# device control arm B - pi5-beta, verifier under test: stage/candidate/verify.sh (r11) - 2026-09-22T18:19:31+07:00
+
+### arm B — 2026-09-22 18:19:31 +07
+### device volumio-pi5-beta ; verifier [workstream]/stage/candidate/verify.sh
+
+### arm B: a process that is NOT real-time when the baseline is taken becomes SCHED_FIFO 50
+### once the verifier has taken that baseline, in an ssh session scope of its own.
+### The session's own RT ceiling is 99, so no privilege is involved.
+launched
+### arm process: pid 30869 (SCHED_OTHER until the trigger appears)
+
+### running the verifier
+
+### baseline taken (saw: == 3. drive a fresh spawn and read the policy back ==)
+== 1. deployed artifacts are the reviewed bytes ==
+camilladsp-js.js 10236af890a92cb37b873bb5c7b10596c90e65e0d258baeb08474c3ec891b429
+10-audio-rt.conf 3db49e30892f99fde79e03cfa854cc371fa457835c1366aa055b145536d3c958
+== 2. backend carries the ceiling, on the unit's own MainPID ==
+MainPID 21917 exe=/usr/bin/node
+  Max realtime priority     45                   45                   
+== baseline: pre-playback real-time inventory (for the regression check) ==
+  before: 104,104,50,irq/165-mmc0,64
+  before: 105,105,50,irq/166-mmc1,64
+  before: 1160,1160,99,ntpd,1332
+  before: 21,21,99,migration/0,0
+  before: 22343,22355,40,rtio,9127321
+  before: 22343,22582,40,output:alsa,9127321
+  before: 24,24,99,migration/1,0
+  before: 259,259,50,card0-crtc0,108
+  before: 29,29,99,migration/2,0
+  before: 30740,30740,45,camilladsp,9388805
+  before: 30740,30741,45,flexi_logger-as,9388805
+  before: 30740,30742,45,flexi_logger-fl,9388805
+  before: 34,34,99,migration/3,0
+  before: 62,62,50,watchdogd,3
+  before: 777,777,50,irq/170-1000800000.codec,1221
+  before: 96,96,50,irq/36-aerdrv,52
+  before: 99,99,50,irq/42-aerdrv,64
+  (kernel threads at rtprio 99/50 and mpd's two FIFO-40 threads are the pre-existing set)
+== 3. drive a fresh spawn and read the policy back ==
+gate=[state: RUNNING]  camilladsp pid before=[30740] after=[30740]
+grant  (drop-in) installed : 2026-09-22 14:31:33  [1790062293599707553 ns]
+camilladsp start          : 2026-09-22 18:19:26  [tick-resolution LOWER BOUND from 9388805 ticks since boot; the true start lies in the following 10ms]
+   install instant precedes the DSP's earliest possible start — ordering established
+the measured DSP came into existence after the grant: asserted (sub-second install instant vs the DSP's tick-resolution lower bound; the backend comparison is a consistency check, not an independent proof)
+   note: the pid did not change across playback (no samplerate change, so the plugin did
+   not stop+start the DSP). Informational only — freshness is established above.
+camilladsp (pid 30740) :: Max realtime priority     45                   45                   
+camilladsp carries the 45 ceiling from volumio.service: asserted
+== per-thread scheduling policy of pid 30740 ==
+  30740 camilladsp SCHED_FIFO 45
+  30741 flexi_logger-as SCHED_FIFO 45
+  30742 flexi_logger-fl SCHED_FIFO 45
+  31065 camilladsp SCHED_FIFO 45
+  31066 camilladsp SCHED_FIFO 45
+  31067 camilladsp SCHED_FIFO 45
+  31068 AlsaPlayback SCHED_FIFO 45
+  31069 FileCapture SCHED_FIFO 45
+  31071 AlsaPlayback SCHED_FIFO 45
+  31096 camilladsp SCHED_FIFO 45
+  31113 camilladsp SCHED_FIFO 45
+
+main (deadline-holding) thread: SCHED_FIFO/45
+main thread is SCHED_FIFO 45: asserted
+every thread of the process is SCHED_FIFO 45
+worker coverage: every non-logger thread is SCHED_FIFO 45 (incl. AlsaPlayback, FileCapture): asserted
+== 4. plugin's own application line (volumio.service journal) ==
+instrument control: 'FusionDsp -' lines visible in the journal = 591
+  Sep 22 18:16:31 volumio-pi5-beta volumio[21917]: info: camilladsp real-time priority 45 applied to pid 29106
+  Sep 22 18:16:56 volumio-pi5-beta volumio[21917]: info: camilladsp real-time priority 45 applied to pid 29840
+  Sep 22 18:19:27 volumio-pi5-beta volumio[21917]: info: camilladsp real-time priority 45 applied to pid 30740
+  (the plugin logged an application attempt; the thread policies in step 3 remain the
+   authoritative reading — a logged application is not by itself proof of the policy)
+== 5. regression check: no NEW real-time threads beyond camilladsp's ==
+newly real-time vs baseline:
+  30740,31065,45,camilladsp,9388805
+  30740,31066,45,camilladsp,9388805
+  30740,31067,45,camilladsp,9388805
+  30740,31068,45,AlsaPlayback,9388805
+  30740,31069,45,FileCapture,9388805
+  30740,31071,45,AlsaPlayback,9388805
+  30740,31096,45,camilladsp,9388805
+  30740,31113,45,camilladsp,9388805
+  30869,30869,50,sleep,9389332
+
+VERIFY FAIL: a process that was NOT real-time before playback acquired real-time scheduling: sleep(tid 30869,prio 50,pid 30869,unit session-1642.scope) — not real-time before playback and outside volumio.service
+
+### arm B complete: verify.sh exit 1
+cleaned up arm process pid 30869
+### device still RUNNING after the arm (the verifier exited before its step 7) — stopping it
+### device left: gate=[closed] governor=[conservative]
+run-arm.sh exit: 0
