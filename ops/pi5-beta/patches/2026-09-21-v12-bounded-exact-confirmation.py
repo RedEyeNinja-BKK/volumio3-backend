@@ -37,7 +37,7 @@ import sys, hashlib, difflib, subprocess, tempfile, os
 # bounded proxy, documented as such, was acceptable in the absence of an external guarantee.
 
 apply = '--apply' in sys.argv
-BK = '/home/volumio/pi5-fix-backup-20260921-021521/'
+BK = 'DEVICE_HOME/pi5-fix-backup-20260921-021521/'
 P = '/data/plugins/music_service/spop/index.js'
 src = open(P).read()
 

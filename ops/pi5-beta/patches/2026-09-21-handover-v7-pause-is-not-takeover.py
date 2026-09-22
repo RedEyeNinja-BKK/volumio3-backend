@@ -25,7 +25,7 @@ import sys, hashlib, difflib, subprocess, tempfile, os
 # gate is a single choke point, not a partial fix.
 
 apply = '--apply' in sys.argv
-BK = '/home/volumio/pi5-fix-backup-20260921-021521/'
+BK = 'DEVICE_HOME/pi5-fix-backup-20260921-021521/'
 P = '/data/plugins/music_service/spop/index.js'
 src = open(P).read()
 

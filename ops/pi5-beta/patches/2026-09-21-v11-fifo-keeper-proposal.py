@@ -43,7 +43,7 @@ emit = None
 if '--emit' in sys.argv:
     emit = sys.argv[sys.argv.index('--emit') + 1]
 
-BK = '/home/volumio/pi5-fix-backup-20260921-021521/'
+BK = 'DEVICE_HOME/pi5-fix-backup-20260921-021521/'
 P = '/data/plugins/audio_interface/fusiondsp/camilladsp-js.js'
 src = open(P).read()
 

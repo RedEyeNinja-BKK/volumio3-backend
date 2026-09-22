@@ -9,8 +9,8 @@
 # Runs as the kiosk's own user (User=volumio). No privileges required - xset talks to
 # our own X session.
 #
-# Test without powering the machine down:  BLANK_FORCE=1 /home/volumio/blank-display.sh
-# Restore afterwards:                      /home/volumio/blank-display.sh --unblank
+# Test without powering the machine down:  BLANK_FORCE=1 DEVICE_HOME/blank-display.sh
+# Restore afterwards:                      DEVICE_HOME/blank-display.sh --unblank
 
 LOG=/data/display-blank.log
 say() { echo "$(date -Is) $*" >> "$LOG" 2>/dev/null; }

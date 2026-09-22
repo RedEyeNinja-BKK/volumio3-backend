@@ -76,7 +76,7 @@ for l in difflib.unified_diff(old.splitlines(), NEW.splitlines(), 'v1', 'v2', li
 open('/tmp/spop-index.v2.js','w').write(out)
 print('  staged sha256: ' + hashlib.sha256(out.encode()).hexdigest())
 if apply:
-    open('/home/volumio/pi5-fix-backup-20260921-021521/spop-index.v1.js','w').write(src)
+    open('DEVICE_HOME/pi5-fix-backup-20260921-021521/spop-index.v1.js','w').write(src)
     open(P,'w').write(out)
     open(P+'.bak-v2','w').write(src)
     print('  APPLIED. live sha256: ' + hashlib.sha256(open(P).read().encode()).hexdigest())

@@ -29,8 +29,8 @@ Darken the panel as part of the kiosk's stop, so a powered-down machine looks of
 
 | Piece | Path | Notes |
 |---|---|---|
-| Script | `/home/volumio/blank-display.sh` | committed here byte-for-byte (`scripts/blank-display.sh`) |
-| Drop-in | `/etc/systemd/system/volumio-kiosk.service.d/20-blank-on-stop.conf` | `ExecStop=/home/volumio/blank-display.sh` |
+| Script | `DEVICE_HOME/blank-display.sh` | committed here byte-for-byte (`scripts/blank-display.sh`) |
+| Drop-in | `/etc/systemd/system/volumio-kiosk.service.d/20-blank-on-stop.conf` | `ExecStop=DEVICE_HOME/blank-display.sh` |
 
 The vendor unit is untouched (drop-in only).
 
@@ -60,7 +60,7 @@ The vendor unit is untouched (drop-in only).
 | Does it hold while the kiosk repaints? | Yes — still `Off` at +5 s, +15 s, +30 s with Chromium continuously redrawing the clock |
 | Is the app harmed? | No — the plugin app kept serving `200`; only the panel was off |
 | Physical result | **Operator-confirmed: "black now, no backlight"** — i.e. DPMS controls this panel's backlight, not just the video signal |
-| Restore | `/home/volumio/blank-display.sh --unblank` → `Monitor is On`, app `200`, screen back |
+| Restore | `DEVICE_HOME/blank-display.sh --unblank` → `Monitor is On`, app `200`, screen back |
 | Real power-down (ExecStop firing during an actual UI power-off) | **NOT yet observed** — same code path, but the integrated behaviour should be confirmed the next time the operator powers down |
 
 ## Rollback

@@ -27,6 +27,6 @@ APPLIED and asserted (mode=upgrade): candidate bytes are the reviewed bytes, the
 carries the 45 ceiling, and volumio.service is active.
 NOT yet asserted here: the DSP's own scheduling policy — that needs a spawn and is
 asserted by verify.sh after the next playback, not claimed by this script.
-Rollback: [workstream]/stage/candidate/rollback.sh   (anchor: /home/volumio/rt-backups-20260922-173541)
+Rollback: [workstream]/stage/candidate/rollback.sh   (anchor: DEVICE_HOME/rt-backups-20260922-173541)
 
 # apply.sh EXIT CODE: 0

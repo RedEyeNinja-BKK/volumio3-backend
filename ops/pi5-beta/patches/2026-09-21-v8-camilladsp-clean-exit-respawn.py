@@ -31,7 +31,7 @@ import sys, hashlib, difflib, subprocess, tempfile, os
 # update would overwrite it, so the change is recorded in the fork with a rollback copy.
 
 apply = '--apply' in sys.argv
-BK = '/home/volumio/pi5-fix-backup-20260921-021521/'
+BK = 'DEVICE_HOME/pi5-fix-backup-20260921-021521/'
 P = '/data/plugins/audio_interface/fusiondsp/camilladsp-js.js'
 src = open(P).read()
 

@@ -80,7 +80,7 @@ function load(file) {
 }
 
 const LIVE = '/data/plugins/music_service/spop/index.js';
-const V6 = '/home/volumio/pi5-fix-backup-20260921-021521/spop-index.v6.js';
+const V6 = 'DEVICE_HOME/pi5-fix-backup-20260921-021521/spop-index.v6.js';
 
 const pauseShapeV6 = callShape(V6, 'paused');
 const pauseShapeV7 = callShape(LIVE, 'paused');

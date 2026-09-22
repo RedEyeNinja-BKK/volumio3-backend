@@ -43,7 +43,7 @@ for l in difflib.unified_diff(src.splitlines(),out.splitlines(),'before','after'
     if l.startswith(('+','-')) and not l.startswith(('+++','---')): print('    '+l)
 print('  staged sha256: '+hashlib.sha256(out.encode()).hexdigest())
 if apply:
-    open('/home/volumio/pi5-fix-backup-20260921-021521/mpd-index.js.orig','w').write(src)
+    open('DEVICE_HOME/pi5-fix-backup-20260921-021521/mpd-index.js.orig','w').write(src)
     open(P,'w').write(out)
     print('  APPLIED. live sha256: '+hashlib.sha256(open(P).read().encode()).hexdigest())
 else: print('  DRY RUN only')
